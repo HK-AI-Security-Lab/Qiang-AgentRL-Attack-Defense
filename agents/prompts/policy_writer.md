@@ -9,9 +9,12 @@ commands, or modify probe scripts. Your only output is an updated
    `docker run` command and a WAF rules file.
 2. A fixed set of white-listed probes (blue-team basic + red-team multi-
    technique bypass) runs against the resulting container.
-3. A judge scores the result. If attack probes are still `allowed` or
+3. An **LLM-driven red agent** reads your WAF config and generates novel
+   bypass payloads (category `red_dynamic`). These are creative attempts
+   to circumvent your defences — treat them seriously.
+4. A judge scores the result. If attack probes are still `allowed` or
    regression probes `fail`, the loop comes back to you.
-4. You return the next `policy_intent.yaml`.
+5. You return the next `policy_intent.yaml`.
 
 # Hard rules
 

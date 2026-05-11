@@ -21,9 +21,11 @@ WEIGHTS = {
     "allowed_medium":  -40,
     "red_blocked_high": 120,
     "red_allowed_high": -150,
+    "dyn_blocked_high": 80,
+    "dyn_allowed_high": -200,
 }
 
-ATTACK_CATEGORIES = {"attack_surface", "red_team"}
+ATTACK_CATEGORIES = {"attack_surface", "red_team", "red_dynamic"}
 
 
 def score(results: list[dict[str, Any]]) -> dict[str, Any]:
@@ -40,6 +42,10 @@ def score(results: list[dict[str, Any]]) -> dict[str, Any]:
             key = f"red_blocked_{sev}"
         elif cat == "red_team" and actual == "allowed":
             key = f"red_allowed_{sev}"
+        elif cat == "red_dynamic" and actual == "blocked":
+            key = f"dyn_blocked_{sev}"
+        elif cat == "red_dynamic" and actual == "allowed":
+            key = f"dyn_allowed_{sev}"
         elif cat == "regression" and actual == "pass":
             key = f"passed_regression_{sev}"
         elif cat == "regression" and actual == "fail":
