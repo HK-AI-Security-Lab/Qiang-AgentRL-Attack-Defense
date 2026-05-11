@@ -377,7 +377,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
 
 <header>
   <h1><span class="red">&#9876;</span> Red <span style="color:var(--text2)">vs</span> Blue <span class="blue">&#128737;</span> · AutoPatch-RL</h1>
-  <div class="meta">model: <b>%%MODEL%%</b> · rounds: <b>%%NUM_ROUNDS%%</b></div>
+  <div class="meta">%%MODEL%% · rounds: <b>%%NUM_ROUNDS%%</b></div>
 </header>
 
 <div class="nav">
@@ -646,12 +646,18 @@ render();
 
 
 def generate_html(run_dir: Path, game_log: list[dict[str, Any]]) -> Path:
-    model = os.environ.get("OPENAI_MODEL", "unknown")
+    base = os.environ.get("OPENAI_MODEL", "unknown")
+    blue_m = os.environ.get("BLUE_MODEL") or base
+    red_m = os.environ.get("RED_MODEL") or base
+    if blue_m == red_m:
+        model_label = f"model: <b>{blue_m}</b>"
+    else:
+        model_label = f"<span style='color:var(--blue)'>Blue=<b>{blue_m}</b></span> · <span style='color:var(--red)'>Red=<b>{red_m}</b></span>"
     enriched = _enrich_game(run_dir, game_log)
     html = _TEMPLATE.replace("%%GAME_JSON%%", json.dumps(enriched, ensure_ascii=False))
     html = html.replace("%%ENDPOINTS_JSON%%", json.dumps(ENDPOINTS, ensure_ascii=False))
     html = html.replace("%%NUM_ROUNDS%%", str(len(game_log)))
-    html = html.replace("%%MODEL%%", model)
+    html = html.replace("%%MODEL%%", model_label)
     html = html.replace("%%RUN_NAME%%", run_dir.name)
     out = run_dir / "battle.html"
     out.write_text(html)

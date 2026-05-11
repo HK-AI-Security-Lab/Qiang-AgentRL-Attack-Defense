@@ -65,7 +65,7 @@ def propose_next(
     if cli is None:
         return _heuristic_step(current_intent_yaml, probe_results), "heuristic"
 
-    model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+    model = os.environ.get("BLUE_MODEL") or os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
     system = PROMPT_PATH.read_text()
     schema = SCHEMA_PATH.read_text()
 

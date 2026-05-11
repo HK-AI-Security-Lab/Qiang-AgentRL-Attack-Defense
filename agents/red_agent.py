@@ -77,7 +77,7 @@ def generate_payloads(
     if cli is None:
         return [], "LLM unavailable", "empty"
 
-    model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+    model = os.environ.get("RED_MODEL") or os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
     system = PROMPT_PATH.read_text()
 
     red_results = [r for r in fixed_probe_results if r["category"] == "red_team"]

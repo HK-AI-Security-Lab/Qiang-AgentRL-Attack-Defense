@@ -82,9 +82,12 @@ def main() -> int:
     load_dotenv(ROOT / ".env")
     max_rounds = int(os.environ.get("MAX_ROUNDS", os.environ.get("MAX_ITERS", "8")))
 
+    blue_m = os.environ.get("BLUE_MODEL") or os.environ.get("OPENAI_MODEL", "?")
+    red_m = os.environ.get("RED_MODEL") or os.environ.get("OPENAI_MODEL", "?")
     console.rule("[bold red]AutoPatch-RL: Adversarial Red vs Blue[/bold red]")
     console.print(f"max_rounds: {max_rounds}")
-    console.print(f"model: {os.environ.get('OPENAI_MODEL', '?')}")
+    console.print(f"[blue]Blue model: {blue_m}[/blue]")
+    console.print(f"[red]Red  model: {red_m}[/red]")
 
     run_dir = state_store.new_run_dir()
     console.print(f"run_dir: [yellow]{run_dir}[/yellow]")
