@@ -74,7 +74,19 @@ def _waf_rules(pi: dict[str, Any]) -> dict[str, Any]:
     waf = pi["controls"]["app_waf"]
     if not waf.get("enabled"):
         return {"block_patterns": []}
-    return {"block_patterns": list(waf.get("block_patterns", []))}
+    out: dict[str, Any] = {"block_patterns": list(waf.get("block_patterns", []))}
+    for key in (
+        "disabled_endpoints",
+        "ssrf_allowed_schemes",
+        "ssrf_allowed_hosts",
+        "path_traversal_block",
+        "sqli_parameterized",
+        "ssti_sandbox",
+        "pickle_disabled",
+    ):
+        if key in waf:
+            out[key] = waf[key]
+    return out
 
 
 def compile_intent(intent_path: Path, iter_dir: Path) -> dict[str, Path]:

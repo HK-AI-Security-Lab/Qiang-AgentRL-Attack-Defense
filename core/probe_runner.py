@@ -21,7 +21,7 @@ def load_registry() -> list[dict[str, Any]]:
 
 
 def _classify(category: str, exit_code: int) -> str:
-    if category == "attack_surface":
+    if category in ("attack_surface", "red_team"):
         return "allowed" if exit_code == 0 else "blocked"
     if category == "regression":
         return "pass" if exit_code == 0 else "fail"

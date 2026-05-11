@@ -12,7 +12,7 @@ echo "---raw---"
 echo "$resp"
 echo "---/raw---"
 
-if echo "$resp" | grep -q '"app":"vulnerable-pinger"'; then
+if echo "$resp" | grep -qE '"app":"vulnerable-(pinger|multi)"'; then
   echo "EVIDENCE: homepage JSON intact"
   exit 0
 fi

@@ -128,6 +128,7 @@ def _heuristic_step(
     data = yaml.safe_load(current_yaml)
     pi = data["policy_intent"]
     c = pi["controls"]
+    waf = c["app_waf"]
 
     allowed = {r["probe_id"] for r in probe_results if r.get("actual") == "allowed"}
     failed_reg = {r["probe_id"] for r in probe_results if r.get("actual") == "fail"}
@@ -159,15 +160,36 @@ def _heuristic_step(
         c["container_security"]["no_new_privileges"] = True
         c["container_security"]["allow_privilege_escalation"] = False
         note = "no_new_privileges=true, allow_privilege_escalation=false"
-    # Step 5: WAF
-    elif "probe_cmd_injection" in allowed and not c["app_waf"]["enabled"]:
-        c["app_waf"]["enabled"] = True
-        c["app_waf"]["block_patterns"] = ["[;&|`$()]", "\\$\\("]
-        note = "WAF on, blocking shell metachar [;&|`$()]"
+    # Step 5: WAF + cmd injection
+    elif ("probe_cmd_injection" in allowed or "red_cmd_injection" in allowed) and not waf.get("enabled"):
+        waf["enabled"] = True
+        waf["block_patterns"] = ["[;&|`$()]", "\\$\\("]
+        note = "WAF on, blocking shell metachar"
+    # Step 6: path traversal
+    elif "red_path_traversal" in allowed and not waf.get("path_traversal_block"):
+        waf["path_traversal_block"] = True
+        note = "path_traversal_block=true for /read"
+    # Step 7: SQL injection
+    elif "red_sqli" in allowed and not waf.get("sqli_parameterized"):
+        waf["sqli_parameterized"] = True
+        note = "sqli_parameterized=true for /search"
+    # Step 8: SSTI
+    elif "red_ssti" in allowed and not waf.get("ssti_sandbox"):
+        waf["ssti_sandbox"] = True
+        note = "ssti_sandbox=true for /render"
+    # Step 9: SSRF
+    elif "red_ssrf" in allowed:
+        waf["ssrf_allowed_schemes"] = ["http", "https"]
+        waf["ssrf_allowed_hosts"] = ["example.com"]
+        note = "SSRF allowlist: http/https only, hosts=[example.com]"
+    # Step 10: deserialization
+    elif "red_deserialization" in allowed and not waf.get("pickle_disabled"):
+        waf["pickle_disabled"] = True
+        note = "pickle_disabled=true for /load"
     # Fix WAF false positive
-    elif "regression_legit_ping" in failed_reg and c["app_waf"]["enabled"]:
-        c["app_waf"]["block_patterns"] = ["[;&|`$()]"]
-        note = "narrowed WAF regex to fix false positive on regression_legit_ping"
+    elif "regression_legit_ping" in failed_reg and waf.get("enabled"):
+        waf["block_patterns"] = ["[;&|`$()]"]
+        note = "narrowed WAF regex to fix false positive"
     else:
         note = "no further heuristic fix available"
 

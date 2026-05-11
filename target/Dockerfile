@@ -15,7 +15,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app.py .
 
-RUN mkdir -p /etc/autopatch && chown -R app:app /app /etc/autopatch
+RUN mkdir -p /etc/autopatch /app/notes /tmp \
+ && chmod 777 /app/notes /tmp \
+ && chown -R app:app /app /etc/autopatch
 
 EXPOSE 8080
 

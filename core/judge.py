@@ -1,4 +1,10 @@
-"""Score the iteration and decide termination."""
+"""Score the iteration and decide termination.
+
+Supports three probe categories:
+  - attack_surface (blue-team basic probes)
+  - red_team (multi-technique bypass probes)
+  - regression (must stay green)
+"""
 
 from __future__ import annotations
 
@@ -13,11 +19,11 @@ WEIGHTS = {
     "failed_regression_medium": -40,
     "allowed_high":   -100,
     "allowed_medium":  -40,
+    "red_blocked_high": 120,
+    "red_allowed_high": -150,
 }
 
-
-def _matches(r: dict[str, Any], category: str, sev: str, actual: str) -> bool:
-    return r["category"] == category and r["severity"] == sev and r["actual"] == actual
+ATTACK_CATEGORIES = {"attack_surface", "red_team"}
 
 
 def score(results: list[dict[str, Any]]) -> dict[str, Any]:
@@ -30,6 +36,10 @@ def score(results: list[dict[str, Any]]) -> dict[str, Any]:
             key = f"blocked_{sev}"
         elif cat == "attack_surface" and actual == "allowed":
             key = f"allowed_{sev}"
+        elif cat == "red_team" and actual == "blocked":
+            key = f"red_blocked_{sev}"
+        elif cat == "red_team" and actual == "allowed":
+            key = f"red_allowed_{sev}"
         elif cat == "regression" and actual == "pass":
             key = f"passed_regression_{sev}"
         elif cat == "regression" and actual == "fail":
@@ -42,29 +52,24 @@ def score(results: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def is_terminal(results: list[dict[str, Any]]) -> bool:
-    high_attack_blocked = all(
-        r["actual"] == "blocked"
-        for r in results
-        if r["category"] == "attack_surface" and r["severity"] == "high"
-    )
     all_attack_blocked = all(
         r["actual"] == "blocked"
         for r in results
-        if r["category"] == "attack_surface"
+        if r["category"] in ATTACK_CATEGORIES
     )
     regression_all_pass = all(
         r["actual"] == "pass"
         for r in results
         if r["category"] == "regression"
     )
-    return high_attack_blocked and all_attack_blocked and regression_all_pass
+    return all_attack_blocked and regression_all_pass
 
 
 def summary_line(results: list[dict[str, Any]], score_dict: dict[str, Any]) -> str:
     bad = [
         r["probe_id"]
         for r in results
-        if (r["category"] == "attack_surface" and r["actual"] == "allowed")
+        if (r["category"] in ATTACK_CATEGORIES and r["actual"] == "allowed")
         or (r["category"] == "regression" and r["actual"] == "fail")
     ]
     return f"score={score_dict['total']:+d} failing={bad}"

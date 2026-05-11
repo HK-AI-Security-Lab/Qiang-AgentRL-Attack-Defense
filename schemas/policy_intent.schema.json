@@ -97,6 +97,40 @@
                   "type": "array",
                   "items": {"type": "string", "minLength": 1, "maxLength": 200},
                   "maxItems": 32
+                },
+                "disabled_endpoints": {
+                  "type": "array",
+                  "items": {"type": "string", "pattern": "^/", "maxLength": 50},
+                  "maxItems": 10,
+                  "description": "Endpoints to completely disable (return 404). E.g. /load, /render"
+                },
+                "ssrf_allowed_schemes": {
+                  "type": "array",
+                  "items": {"type": "string", "enum": ["http", "https"]},
+                  "maxItems": 2,
+                  "description": "For /fetch: only allow these URL schemes (blocks file://, gopher://, etc.)"
+                },
+                "ssrf_allowed_hosts": {
+                  "type": "array",
+                  "items": {"type": "string", "maxLength": 100},
+                  "maxItems": 16,
+                  "description": "For /fetch: allowlist of target hostnames"
+                },
+                "path_traversal_block": {
+                  "type": "boolean",
+                  "description": "Block .. sequences in /read ?name= parameter"
+                },
+                "sqli_parameterized": {
+                  "type": "boolean",
+                  "description": "Force /search to use parameterized queries instead of f-string"
+                },
+                "ssti_sandbox": {
+                  "type": "boolean",
+                  "description": "Render /render with autoescape and sandbox enabled"
+                },
+                "pickle_disabled": {
+                  "type": "boolean",
+                  "description": "Disable /load endpoint entirely (reject all pickle)"
                 }
               }
             }
