@@ -1,0 +1,17 @@
+[project]
+name = "autopatch-rl"
+version = "0.1.0"
+description = "LLM-driven attack-surface policy evolution demo"
+requires-python = ">=3.9"
+dependencies = [
+    "openai>=1.40.0",
+    "pyyaml>=6.0",
+    "jsonschema>=4.21",
+    "python-dotenv>=1.0",
+    "rich>=13.7",
+    "flask>=3.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["core*", "agents*"]

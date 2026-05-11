@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ProbeResult",
+  "type": "object",
+  "required": ["probe_id", "category", "severity", "expected", "actual",
+               "exit_code", "iteration"],
+  "additionalProperties": false,
+  "properties": {
+    "probe_id":   {"type": "string"},
+    "category":   {"type": "string", "enum": ["attack_surface", "regression"]},
+    "severity":   {"type": "string", "enum": ["high", "medium", "low"]},
+    "expected":   {"type": "string", "enum": ["blocked", "pass"]},
+    "actual":     {"type": "string", "enum": ["blocked", "allowed", "pass", "fail", "error"]},
+    "evidence":   {"type": "string"},
+    "raw_stdout": {"type": "string"},
+    "raw_stderr": {"type": "string"},
+    "exit_code":  {"type": "integer"},
+    "iteration":  {"type": "integer", "minimum": 0},
+    "duration_s": {"type": "number"}
+  }
+}

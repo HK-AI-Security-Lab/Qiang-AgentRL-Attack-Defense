@@ -1,0 +1,12 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.DS_Store
+reports/runs/*/
+policies/generated/*/
+!reports/runs/.gitkeep
+!policies/generated/.gitkeep
+policies/generated/latest

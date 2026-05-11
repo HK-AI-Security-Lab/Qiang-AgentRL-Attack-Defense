@@ -1,0 +1,70 @@
+probes:
+  - id: probe_cmd_injection
+    script: probes/attack_surface/probe_cmd_injection.sh
+    category: attack_surface
+    severity: high
+    expected: blocked
+    description: >
+      The /ping endpoint uses an unsanitised f-string into os.popen/subprocess,
+      so a `; id` payload yields the container user's uid. Defending this
+      requires either (a) sanitising the input via WAF / regex blocklist, or
+      (b) rewriting the app to use argument lists with shell=False (out of scope
+      for the agent in this MVP).
+
+  - id: probe_host_mount
+    script: probes/attack_surface/probe_host_mount.sh
+    category: attack_surface
+    severity: high
+    expected: blocked
+    description: >
+      The baseline container bind-mounts the host root filesystem to /host
+      (read-only). An RCE attacker can dump host secrets. Defence: remove the
+      mount in policy_intent.mounts.remove.
+
+  - id: probe_docker_sock
+    script: probes/attack_surface/probe_docker_sock.sh
+    category: attack_surface
+    severity: high
+    expected: blocked
+    description: >
+      The baseline container exposes /var/run/docker.sock. An RCE attacker can
+      pivot to launch arbitrary privileged containers. Defence: remove the
+      bind-mount.
+
+  - id: probe_userns
+    script: probes/attack_surface/probe_userns.sh
+    category: attack_surface
+    severity: medium
+    expected: blocked
+    description: >
+      Creating a new user namespace inside the container is a prerequisite for
+      several kernel-escape CVEs. Defence: seccomp profile RuntimeDefault
+      (denies unshare(CLONE_NEWUSER) for non-priv users) or custom seccomp.
+
+  - id: probe_proc_kallsyms
+    script: probes/attack_surface/probe_proc_kallsyms.sh
+    category: attack_surface
+    severity: medium
+    expected: blocked
+    description: >
+      Leaking kernel symbol addresses helps build ROP/kASLR-bypass chains.
+      Defence: run_as_non_root (kptr_restrict masks /proc/kallsyms for non-root)
+      or read_only_root_fs + drop CAP_SYS_ADMIN.
+
+  - id: regression_health
+    script: probes/regression/regression_health.sh
+    category: regression
+    severity: high
+    expected: pass
+
+  - id: regression_legit_ping
+    script: probes/regression/regression_legit_ping.sh
+    category: regression
+    severity: high
+    expected: pass
+
+  - id: regression_home
+    script: probes/regression/regression_home.sh
+    category: regression
+    severity: medium
+    expected: pass

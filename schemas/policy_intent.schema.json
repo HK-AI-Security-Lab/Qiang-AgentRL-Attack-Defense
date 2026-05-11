@@ -1,0 +1,112 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PolicyIntent",
+  "type": "object",
+  "required": ["policy_intent"],
+  "additionalProperties": false,
+  "properties": {
+    "policy_intent": {
+      "type": "object",
+      "required": ["name", "target", "controls"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {"type": "string", "minLength": 1, "maxLength": 80},
+        "target": {
+          "type": "object",
+          "required": ["image"],
+          "additionalProperties": false,
+          "properties": {
+            "image": {"type": "string"}
+          }
+        },
+        "controls": {
+          "type": "object",
+          "required": ["container_security", "capabilities", "seccomp",
+                       "mounts", "namespace", "app_waf"],
+          "additionalProperties": false,
+          "properties": {
+            "container_security": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["run_as_non_root", "allow_privilege_escalation",
+                           "read_only_root_fs", "no_new_privileges", "privileged"],
+              "properties": {
+                "run_as_non_root":            {"type": "boolean"},
+                "allow_privilege_escalation": {"type": "boolean"},
+                "read_only_root_fs":          {"type": "boolean"},
+                "no_new_privileges":          {"type": "boolean"},
+                "privileged":                 {"type": "boolean"}
+              }
+            },
+            "capabilities": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["drop", "add"],
+              "properties": {
+                "drop": {"type": "array", "items": {"type": "string"}, "maxItems": 64},
+                "add":  {"type": "array", "items": {"type": "string"}, "maxItems": 16}
+              }
+            },
+            "seccomp": {
+              "type": "object",
+              "required": ["profile"],
+              "additionalProperties": false,
+              "properties": {
+                "profile": {
+                  "type": "string",
+                  "enum": ["RuntimeDefault", "Unconfined"]
+                }
+              }
+            },
+            "mounts": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["bind"],
+              "properties": {
+                "bind": {
+                  "type": "array",
+                  "maxItems": 8,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["host_path", "container_path", "readonly"],
+                    "properties": {
+                      "host_path":       {"type": "string"},
+                      "container_path":  {"type": "string"},
+                      "readonly":        {"type": "boolean"}
+                    }
+                  }
+                }
+              }
+            },
+            "namespace": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["pid_host"],
+              "properties": {
+                "pid_host": {"type": "boolean"}
+              }
+            },
+            "app_waf": {
+              "type": "object",
+              "required": ["enabled", "block_patterns"],
+              "additionalProperties": false,
+              "properties": {
+                "enabled": {"type": "boolean"},
+                "block_patterns": {
+                  "type": "array",
+                  "items": {"type": "string", "minLength": 1, "maxLength": 200},
+                  "maxItems": 32
+                }
+              }
+            }
+          }
+        },
+        "rationale": {
+          "type": "string",
+          "maxLength": 4000
+        }
+      }
+    }
+  }
+}
