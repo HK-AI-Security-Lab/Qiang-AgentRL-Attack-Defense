@@ -1,0 +1,12 @@
+{
+  "total": 730,
+  "breakdown": {
+    "blocked_high": 300,
+    "blocked_medium": 80,
+    "passed_regression_high": 60,
+    "passed_regression_medium": 10,
+    "red_blocked_high": 240,
+    "red_allowed_high": -600,
+    "dyn_blocked_high": 640
+  }
+}

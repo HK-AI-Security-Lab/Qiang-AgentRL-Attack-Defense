@@ -1,0 +1,37 @@
+policy_intent:
+  name: harden-iter-1-mounts
+  target:
+    image: autopatch-target:vuln
+  controls:
+    container_security:
+      run_as_non_root: false
+      allow_privilege_escalation: true
+      read_only_root_fs: false
+      no_new_privileges: false
+      privileged: false
+    capabilities:
+      drop: []
+      add:
+      - SYS_ADMIN
+    seccomp:
+      profile: Unconfined
+    mounts:
+      bind: []
+    namespace:
+      pid_host: false
+    app_waf:
+      enabled: false
+      block_patterns: []
+  rationale: 'Iteration 1: Removing dangerous bind mounts (highest-severity container-level
+
+    issue). probe_host_mount and probe_docker_sock are both HIGH severity and
+
+    currently allowed. Removing the /host bind mount and /var/run/docker.sock
+
+    mount eliminates two critical escape/pivot vectors. This is a pure container
+
+    hardening fix with no app-level changes, following the one-change-per-iteration
+
+    rule. Regression tests (health, legit_ping, home) should remain passing since
+
+    they do not depend on host filesystem access or docker.sock.'

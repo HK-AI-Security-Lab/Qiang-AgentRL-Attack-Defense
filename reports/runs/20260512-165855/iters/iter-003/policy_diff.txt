@@ -1,0 +1,19 @@
+[container_security]
+  - allow_privilege_escalation: true
+  + allow_privilege_escalation: false
+  - no_new_privileges: false
+  + no_new_privileges: true
+
+[capabilities]
+  - drop: []
+  + drop: [ALL]
+  - add: [SYS_ADMIN]
+  + add: [NET_RAW]
+
+[seccomp]
+  - profile: Unconfined
+  + profile: RuntimeDefault
+
+[app_waf]
+  - block_patterns: [[;&|`$()\n]]
+  + block_patterns: [[;&|`$()\\n]]

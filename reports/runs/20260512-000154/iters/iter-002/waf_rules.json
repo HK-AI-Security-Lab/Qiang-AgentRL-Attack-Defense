@@ -1,9 +1,0 @@
-{
-  "block_patterns": [
-    "[;&|`$()\\n]"
-  ],
-  "path_traversal_block": false,
-  "sqli_parameterized": false,
-  "ssti_sandbox": false,
-  "pickle_disabled": false
-}

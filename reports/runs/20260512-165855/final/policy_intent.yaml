@@ -1,0 +1,50 @@
+policy_intent:
+  name: harden-iter-3-container-userns
+  target:
+    image: autopatch-target:vuln
+  controls:
+    container_security:
+      run_as_non_root: false
+      allow_privilege_escalation: false
+      read_only_root_fs: false
+      no_new_privileges: true
+      privileged: false
+    capabilities:
+      drop:
+      - ALL
+      add:
+      - NET_RAW
+    seccomp:
+      profile: RuntimeDefault
+    mounts:
+      bind: []
+    namespace:
+      pid_host: false
+    app_waf:
+      enabled: true
+      block_patterns:
+      - '[;&|`$()\\n]'
+  rationale: 'Iteration 3: Hardening container-level security to block namespace escape.
+
+
+    probe_userns is MEDIUM severity and currently ALLOWED. The probe shows that
+
+    unshare -U (user namespace creation) succeeds, allowing an attacker to create
+
+    a new user namespace and potentially escalate privileges or escape confinement.
+
+
+    Fixing this requires tightening container_security controls:
+
+    - allow_privilege_escalation: false (was true) — prevents privilege escalation
+
+    - no_new_privileges: true (was false) — prevents new privilege grants
+
+
+    These changes directly block the userns probe without affecting app-level WAF
+
+    or other container controls. Command injection (red_cmd_injection, dyn_cmd_*)
+
+    remain blocked by the existing WAF pattern. This follows one-change-per-iteration
+
+    by addressing only the container_security category.'

