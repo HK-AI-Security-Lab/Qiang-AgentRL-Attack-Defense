@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>AutoPatch-RL · Red vs Blue Replay</title>
+<style>
+  :root {
+    --bg: #0d1117; --card: #161b22; --card2: #1c2128; --border: #30363d;
+    --red: #f85149; --red-bg: rgba(248,81,73,0.12); --red-border: #da3633;
+    --blue: #58a6ff; --blue-bg: rgba(88,166,255,0.12); --blue-border: #388bfd;
+    --green: #3fb950; --green-bg: rgba(63,185,80,0.12);
+    --gray: #6e7681; --gray-bg: rgba(110,118,129,0.15);
+    --yellow: #d29922;
+    --text: #c9d1d9; --text2: #8b949e; --text3: #6e7681;
+    --font: 'SF Mono', 'JetBrains Mono', 'Cascadia Code', monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    min-height: 100vh; display: flex; flex-direction: column;
+  }
+  header {
+    padding: 16px 24px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--card);
+  }
+  h1 { margin: 0; font-size: 20px; font-weight: 600; }
+  h1 .red { color: var(--red); }
+  h1 .blue { color: var(--blue); }
+  .meta { color: var(--text2); font-size: 13px; }
+  .meta b { color: var(--text); font-family: var(--font); }
+
+  /* Navigator */
+  .nav {
+    padding: 12px 24px; background: var(--card2); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .nav button {
+    background: var(--card); color: var(--text); border: 1px solid var(--border);
+    padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px;
+    transition: all 0.15s;
+  }
+  .nav button:hover { background: var(--border); }
+  .nav button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .nav .play-btn { background: var(--blue); color: white; border-color: var(--blue); }
+  .nav .play-btn:hover { background: var(--blue-border); }
+  .round-dots { display: flex; gap: 6px; flex: 1; justify-content: center; }
+  .round-dot {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--card); border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 11px; font-family: var(--font);
+    color: var(--text2); transition: all 0.15s; position: relative;
+  }
+  .round-dot:hover { border-color: var(--blue); }
+  .round-dot.active { border-color: var(--yellow); color: var(--yellow); transform: scale(1.15); }
+  .round-dot.positive { background: var(--green-bg); color: var(--green); }
+  .round-dot.negative { background: var(--red-bg); color: var(--red); }
+  .round-dot.equilibrium::after {
+    content: '★'; position: absolute; top: -10px; right: -6px;
+    color: var(--green); font-size: 14px;
+  }
+
+  .score-display {
+    font-family: var(--font); font-size: 14px; font-weight: 700;
+    padding: 4px 12px; border-radius: 6px; min-width: 80px; text-align: center;
+  }
+  .score-display.positive { background: var(--green-bg); color: var(--green); }
+  .score-display.negative { background: var(--red-bg); color: var(--red); }
+
+  /* Main board */
+  main {
+    flex: 1; padding: 24px; display: grid;
+    grid-template-columns: 1fr; gap: 20px; max-width: 1400px;
+    margin: 0 auto; width: 100%;
+  }
+  .board {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 24px;
+  }
+  .board-title {
+    font-size: 14px; color: var(--text2); margin-bottom: 16px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .nodes {
+    display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px;
+  }
+  .node {
+    background: var(--card2); border: 2px solid var(--border);
+    border-radius: 10px; padding: 14px; cursor: pointer;
+    transition: all 0.2s; position: relative;
+    min-height: 130px; display: flex; flex-direction: column;
+  }
+  .node:hover { transform: translateY(-2px); border-color: var(--blue); }
+  .node.blocked { border-color: var(--green); background: var(--green-bg); }
+  .node.allowed { border-color: var(--red); background: var(--red-bg); animation: pulse 1.2s infinite; }
+  .node.disabled { border-color: var(--gray); background: var(--gray-bg); opacity: 0.6; }
+  .node.bypass-attempt { border-color: var(--red); background: var(--red-bg); }
+  .node.selected { outline: 2px solid var(--yellow); outline-offset: 2px; }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(248,81,73,0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(248,81,73,0); }
+  }
+
+  .node-icon { font-size: 24px; line-height: 1; margin-bottom: 6px; }
+  .node-path {
+    font-family: var(--font); font-size: 14px; font-weight: 600;
+    color: var(--text); margin-bottom: 2px;
+  }
+  .node-vuln { font-size: 11px; color: var(--text2); margin-bottom: 4px; }
+  .node-cwe { font-size: 10px; color: var(--text3); font-family: var(--font); }
+  .node-status {
+    margin-top: auto; font-size: 11px; font-weight: 600;
+    padding: 2px 6px; border-radius: 4px; text-align: center;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .node.blocked .node-status { background: var(--green); color: #000; }
+  .node.allowed .node-status { background: var(--red); color: #fff; }
+  .node.disabled .node-status { background: var(--gray); color: #fff; }
+  .node.unknown .node-status { background: var(--border); color: var(--text2); }
+
+  .bypass-badge {
+    position: absolute; top: -8px; right: -8px;
+    background: var(--red); color: white; font-size: 10px;
+    padding: 2px 6px; border-radius: 10px; font-weight: 700;
+    font-family: var(--font);
+  }
+
+  /* Detail panels */
+  .panels {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+  }
+  .panel {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px;
+    max-height: 600px; overflow-y: auto;
+  }
+  .panel-red { border-left: 4px solid var(--red); }
+  .panel-blue { border-left: 4px solid var(--blue); }
+  .panel h2 {
+    margin: 0 0 12px 0; font-size: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .panel-red h2 { color: var(--red); }
+  .panel-blue h2 { color: var(--blue); }
+  .panel .icon { font-size: 22px; }
+  .section-label {
+    color: var(--text2); font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+    margin: 14px 0 6px 0; font-weight: 600;
+  }
+  .rationale {
+    background: var(--card2); padding: 10px 12px; border-radius: 8px;
+    font-size: 13px; line-height: 1.55; color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .payload-item {
+    background: var(--card2); border-left: 3px solid var(--gray);
+    padding: 10px 12px; margin: 6px 0; border-radius: 6px;
+    font-size: 12px;
+  }
+  .payload-item.bypassed { border-left-color: var(--red); }
+  .payload-item.blocked  { border-left-color: var(--green); }
+  .payload-item .technique { font-weight: 600; margin-bottom: 4px; }
+  .payload-item .params {
+    font-family: var(--font); font-size: 11px; color: var(--text2);
+    background: var(--bg); padding: 4px 8px; border-radius: 4px;
+    margin-top: 4px; word-break: break-all;
+  }
+  .payload-item .endpoint-tag {
+    display: inline-block; font-family: var(--font);
+    font-size: 10px; padding: 1px 6px; border-radius: 3px;
+    background: var(--bg); margin-right: 6px;
+  }
+  .payload-item .result-tag {
+    display: inline-block; font-size: 10px;
+    padding: 1px 6px; border-radius: 3px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.3px;
+  }
+  .payload-item.bypassed .result-tag { background: var(--red); color: #fff; }
+  .payload-item.blocked .result-tag  { background: var(--green); color: #000; }
+
+  .policy-change {
+    font-family: var(--font); font-size: 12px;
+    padding: 6px 10px; border-radius: 4px; margin: 3px 0;
+    background: var(--card2);
+  }
+  .policy-change .add { color: var(--green); }
+  .policy-change .remove { color: var(--red); }
+
+  .defenses-list { display: flex; flex-wrap: wrap; gap: 4px; }
+  .defense-chip {
+    background: var(--blue-bg); color: var(--blue);
+    padding: 2px 8px; border-radius: 12px;
+    font-size: 11px; border: 1px solid var(--blue-border);
+  }
+
+  /* Node detail modal */
+  .node-detail {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px; margin-top: 16px;
+    display: none;
+  }
+  .node-detail.show { display: block; }
+  .node-detail h3 { margin: 0 0 8px 0; font-size: 16px; }
+  .node-detail .close {
+    float: right; background: none; border: none; color: var(--text2);
+    cursor: pointer; font-size: 18px;
+  }
+
+  footer {
+    padding: 16px 24px; border-top: 1px solid var(--border);
+    text-align: center; color: var(--text3); font-size: 12px;
+  }
+  footer a { color: var(--blue); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span class="red">&#9876;</span> Red <span style="color:var(--text2)">vs</span> Blue <span class="blue">&#128737;</span> · AutoPatch-RL</h1>
+  <div class="meta"><span style='color:var(--blue)'>Blue=<b>claude-haiku-4-5-20251001</b></span> · <span style='color:var(--red)'>Red=<b>claude-sonnet-4-6</b></span> · rounds: <b>2</b> · <span style="color:var(--red);font-weight:700">⚔️ RED WIN</span></div>
+</header>
+
+<div class="nav">
+  <button id="prevBtn">&larr; Prev</button>
+  <button id="playBtn" class="play-btn">&#9658; Play</button>
+  <div class="round-dots" id="roundDots"></div>
+  <div class="score-display" id="scoreDisplay">+0</div>
+  <button id="nextBtn">Next &rarr;</button>
+</div>
+
+<main>
+  <div class="board">
+    <div class="board-title">
+      <span id="roundTitle">Round 0</span> ·
+      Endpoints — click a node for details
+    </div>
+    <div class="nodes" id="nodes"></div>
+    <div class="node-detail" id="nodeDetail"></div>
+  </div>
+
+  <div class="panels">
+    <div class="panel panel-red">
+      <h2><span class="icon">&#9876;</span> Red Move</h2>
+      <div id="redContent"></div>
+    </div>
+    <div class="panel panel-blue">
+      <h2><span class="icon">&#128737;</span> Blue Move</h2>
+      <div id="blueContent"></div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  Generated by AutoPatch-RL · run_dir: <a href="#">20260512-161405</a>
+</footer>
+
+<script>
+const GAME = [{"round": 0, "blue_move": {"source": "baseline", "rationale": "Baseline policy (no changes yet)", "policy_snapshot": "policy_intent:\n  name: baseline-misconfigured\n  target:\n    image: autopatch-target:vuln\n\n  controls:\n    container_security:\n      run_as_non_root: false\n      allow_privilege_escalation: true\n      read_only_root_fs: false\n      no_new_privileges: false\n      privileged: false\n\n    capabilities:\n      drop: []\n      add: [SYS_ADMIN]\n\n    seccomp:\n      profile: Unconfined\n\n    mounts:\n      bind:\n        - host_path: /\n          container_path: /host\n          readonly: true\n        - host_path: /var/run/docker.sock\n          container_path: /var/run/docker.sock\n          readonly: false\n\n    namespace:\n      pid_host: false\n\n    app_waf:\n      enabled: false\n      block_patterns: []\n\n  rationale: |\n    Realistic baseline misconfiguration. Operator added SYS_ADMIN \"for a\n    debugging tool\", disabled seccomp \"to debug a crash\", bind-mounted host /\n    \"for log forwarding\", and exposed docker.sock \"for sidecar deployment\".\n    App runs as root, no WAF. This is the starting state the agent must harden\n    without breaking the regression suite.\n"}, "red_move": {"source": "llm", "rationale": "All 6 endpoints were reported as 'allowed' in iteration 0 with no WAF block_patterns configured, meaning the application is fully unprotected. I'm generating novel payloads across all endpoints to confirm exploitability and demonstrate diverse bypass techniques: semicolon/backtick chaining for CMDi, hex IP and file:// for SSRF, dot-obfuscation for path traversal, UNION SELECT for SQLi, arithmetic eval for SSTI, and a pickle RCE payload for deserialization. The pickle payload encodes: import posi", "num_payloads": 8, "num_bypasses": 4, "bypass_techniques": ["Semicolon command chaining for command injection", "Hex-encoded IP to bypass private IP check", "file:// scheme for local file read via SSRF", "Basic Jinja2 arithmetic expression to confirm SSTI"], "payloads": [{"id": "dyn_cmd_1", "endpoint": "/ping", "technique": "Semicolon command chaining for command injection"}, {"id": "dyn_cmd_2", "endpoint": "/ping", "technique": "Backtick subshell execution"}, {"id": "dyn_ssrf_1", "endpoint": "/fetch", "technique": "Hex-encoded IP to bypass private IP check"}, {"id": "dyn_ssrf_2", "endpoint": "/fetch", "technique": "file:// scheme for local file read via SSRF"}, {"id": "dyn_path_1", "endpoint": "/read", "technique": "Double-dot obfuscation to bypass .. substring filter"}, {"id": "dyn_sqli_1", "endpoint": "/search", "technique": "UNION-based SQL injection to extract secrets table"}, {"id": "dyn_ssti_1", "endpoint": "/render", "technique": "Basic Jinja2 arithmetic expression to confirm SSTI"}, {"id": "dyn_deser_1", "endpoint": "/load", "technique": "Pickle REDUCE opcode calling os.system('id') for RCE"}]}, "fixed_probes": {"total": 14, "allowed": 10, "blocked": 1, "passed_reg": 3, "failed_reg": 0, "allowed_ids": ["probe_cmd_injection", "probe_host_mount", "probe_docker_sock", "probe_userns", "red_cmd_injection", "red_ssrf", "red_path_traversal", "red_sqli", "red_ssti", "red_deserialization"], "failed_ids": []}, "dynamic_probes": {"total": 8, "allowed": 4, "blocked": 4, "passed_reg": 0, "failed_reg": 0, "allowed_ids": ["dyn_cmd_1", "dyn_ssrf_1", "dyn_ssrf_2", "dyn_ssti_1"], "failed_ids": []}, "score": -1610, "terminal": false, "score_breakdown": {"allowed_high": -300, "allowed_medium": -40, "blocked_medium": 40, "passed_regression_high": 60, "passed_regression_medium": 10, "red_allowed_high": -900, "dyn_allowed_high": -800, "dyn_blocked_high": 320}, "duration_s": 87.5, "round_class": {"all_attacks_blocked": false, "regression_ok": true, "regression_fail": false, "dyn_bypass_count": 4, "any_critical_bypass": true, "blue_clean": false}, "streaks": {"blue_clean": 0, "red_bypass": 1, "reg_fail": 0}, "endpoint_state": {"/ping": {"fixed": "allowed", "dynamic": [{"technique": "Semicolon command chaining for command injection", "bypassed": true, "id": "dyn_cmd_1", "params": {"host": "127.0.0.1;id"}, "method": "POST", "evidence": "BYPASS via Semicolon command chaining for command injection; match: uid=0("}, {"technique": "Backtick subshell execution", "bypassed": false, "id": "dyn_cmd_2", "params": {"host": "127.0.0.1`id`"}, "method": "POST", "evidence": "no match for detect_pattern (HTTP 200)"}], "defenses_active": [], "evidence": "at least one command injection payload bypassed defenses"}, "/fetch": {"fixed": "allowed", "dynamic": [{"technique": "Hex-encoded IP to bypass private IP check", "bypassed": true, "id": "dyn_ssrf_1", "params": {"url": "http://0x7f000001:8080/"}, "method": "GET", "evidence": "BYPASS via Hex-encoded IP to bypass private IP check; match: health"}, {"technique": "file:// scheme for local file read via SSRF", "bypassed": true, "id": "dyn_ssrf_2", "params": {"url": "file:///etc/passwd"}, "method": "GET", "evidence": "BYPASS via file:// scheme for local file read via SSRF; match: root:x:0:0"}], "defenses_active": [], "evidence": "SSRF succeeded — internal resource reachable via /fetch"}, "/read": {"fixed": "allowed", "dynamic": [{"technique": "Double-dot obfuscation to bypass .. substring filter", "bypassed": false, "id": "dyn_path_1", "params": {"name": "....//....//....//etc/passwd"}, "method": "GET", "evidence": "no match for detect_pattern (HTTP 404)"}], "defenses_active": [], "evidence": "path traversal succeeded — read /etc/passwd via /read"}, "/search": {"fixed": "allowed", "dynamic": [{"technique": "UNION-based SQL injection to extract secrets table", "bypassed": false, "id": "dyn_sqli_1", "params": {"q": "' UNION SELECT flag,2,3 FROM secrets--"}, "method": "GET", "evidence": "no match for detect_pattern (HTTP 500)"}], "defenses_active": [], "evidence": "SQL injection succeeded — extracted data from secrets or bypassed auth"}, "/render": {"fixed": "allowed", "dynamic": [{"technique": "Basic Jinja2 arithmetic expression to confirm SSTI", "bypassed": true, "id": "dyn_ssti_1", "params": {"template": "{{7*7}}"}, "method": "POST", "evidence": "BYPASS via Basic Jinja2 arithmetic expression to confirm SSTI; match: 49"}], "defenses_active": [], "evidence": "SSTI succeeded — template injection executed on server"}, "/load": {"fixed": "allowed", "dynamic": [{"technique": "Pickle REDUCE opcode calling os.system('id') for RCE", "bypassed": false, "id": "dyn_deser_1", "params": {"data": "Y3Bvc2l4CnN5c3RlbQpwMAooUydpZCcKcDEKdHAyClJwMwou"}, "method": "POST", "evidence": "no match for detect_pattern (HTTP 200)"}], "defenses_active": [], "evidence": "insecure deserialization RCE succeeded via /load"}}, "policy_changes": []}, {"round": 1, "blue_move": {"source": "llm", "rationale": "Iteration 1: Removed all dangerous bind mounts. The baseline had two critical\nmount vulnerabilities: (1) /host mounted read-only allowed host filesystem\nenumeration (probe_host_mount), and (2) /var/run/docker.sock mounted\nread-write allowed full Docker daemon access (probe_docker_sock). Both are\nhigh-severity escape vectors. Removing these mounts blocks the two\nhighest-impact container-level probes. Regression tests (health, legit_ping,\nhomepage) remain unaffected. Next iteration will address co", "policy_snapshot": "policy_intent:\n  name: harden-iter-1-mounts\n  target:\n    image: autopatch-target:vuln\n  controls:\n    container_security:\n      run_as_non_root: false\n      allow_privilege_escalation: true\n      read_only_root_fs: false\n      no_new_privileges: false\n      privileged: false\n    capabilities:\n      drop: []\n      add:\n      - SYS_ADMIN\n    seccomp:\n      profile: Unconfined\n    mounts:\n      bind: []\n    namespace:\n      pid_host: false\n    app_waf:\n      enabled: false\n      block_patterns: []\n  rationale: 'Iteration 1: Removed all dangerous bind mounts. The baseline had two\n    critical\n\n    mount vulnerabilities: (1) /host mounted read-only allowed host filesystem\n\n    enumeration (probe_host_mount), and (2) /var/run/docker.sock mounted\n\n    read-write allowed full Docker daemon access (probe_docker_sock). Both are\n\n    high-severity escape vectors. Removing these mounts blocks the two\n\n    highest-impact container-level probes. Regression tests (health, legit_ping,\n\n    homepage) remain unaffected. Next iteration will address container_security\n\n    and capabilities to block privilege escalation and userns creation.'\n"}, "red_move": {"source": "llm", "rationale": "All 6 endpoints showed successful exploitation in iteration 1 with no WAF block_patterns configured. Generating novel variants across all endpoints to confirm consistent exploitability and demonstrate diverse attack techniques. Payloads include semicolon/subshell command injection, file:// SSRF, deep path traversal, UNION-based SQLi, basic SSTI arithmetic, and pickle deserialization RCE.", "num_payloads": 8, "num_bypasses": 5, "bypass_techniques": ["semicolon command separator for command injection", "direct localhost SSRF to internal service", "file:// scheme SSRF to read local files", "deep path traversal with multiple ../ sequences", "basic Jinja2 SSTI arithmetic expression evaluation"], "payloads": [{"id": "dyn_cmd_1", "endpoint": "/ping", "technique": "semicolon command separator for command injection"}, {"id": "dyn_cmd_2", "endpoint": "/ping", "technique": "command substitution via $() syntax"}, {"id": "dyn_ssrf_1", "endpoint": "/fetch", "technique": "direct localhost SSRF to internal service"}, {"id": "dyn_ssrf_2", "endpoint": "/fetch", "technique": "file:// scheme SSRF to read local files"}, {"id": "dyn_path_1", "endpoint": "/read", "technique": "deep path traversal with multiple ../ sequences"}, {"id": "dyn_sqli_1", "endpoint": "/search", "technique": "UNION-based SQL injection to extract secrets table"}, {"id": "dyn_ssti_1", "endpoint": "/render", "technique": "basic Jinja2 SSTI arithmetic expression evaluation"}, {"id": "dyn_deser_1", "endpoint": "/load", "technique": "pickle RCE via __reduce__ executing id command"}]}, "fixed_probes": {"total": 14, "allowed": 8, "blocked": 3, "passed_reg": 3, "failed_reg": 0, "allowed_ids": ["probe_cmd_injection", "probe_userns", "red_cmd_injection", "red_ssrf", "red_path_traversal", "red_sqli", "red_ssti", "red_deserialization"], "failed_ids": []}, "dynamic_probes": {"total": 8, "allowed": 5, "blocked": 3, "passed_reg": 0, "failed_reg": 0, "allowed_ids": ["dyn_cmd_1", "dyn_ssrf_1", "dyn_ssrf_2", "dyn_path_1", "dyn_ssti_1"], "failed_ids": []}, "score": -1490, "terminal": true, "score_breakdown": {"allowed_high": -100, "blocked_high": 200, "allowed_medium": -40, "blocked_medium": 40, "passed_regression_high": 60, "passed_regression_medium": 10, "red_allowed_high": -900, "dyn_allowed_high": -1000, "dyn_blocked_high": 240}, "duration_s": 71.5, "round_class": {"all_attacks_blocked": false, "regression_ok": true, "regression_fail": false, "dyn_bypass_count": 5, "any_critical_bypass": true, "blue_clean": false}, "streaks": {"blue_clean": 0, "red_bypass": 2, "reg_fail": 0}, "endpoint_state": {"/ping": {"fixed": "allowed", "dynamic": [{"technique": "semicolon command separator for command injection", "bypassed": true, "id": "dyn_cmd_1", "params": {"host": "127.0.0.1;id"}, "method": "POST", "evidence": "BYPASS via semicolon command separator for command injection; match: uid=0("}, {"technique": "command substitution via $() syntax", "bypassed": false, "id": "dyn_cmd_2", "params": {"host": "127.0.0.1$(id)"}, "method": "POST", "evidence": "no match for detect_pattern (HTTP 200)"}], "defenses_active": [], "evidence": "at least one command injection payload bypassed defenses"}, "/fetch": {"fixed": "allowed", "dynamic": [{"technique": "direct localhost SSRF to internal service", "bypassed": true, "id": "dyn_ssrf_1", "params": {"url": "http://127.0.0.1:8080/"}, "method": "GET", "evidence": "BYPASS via direct localhost SSRF to internal service; match: health"}, {"technique": "file:// scheme SSRF to read local files", "bypassed": true, "id": "dyn_ssrf_2", "params": {"url": "file:///etc/passwd"}, "method": "GET", "evidence": "BYPASS via file:// scheme SSRF to read local files; match: root:x:0:0"}], "defenses_active": [], "evidence": "SSRF succeeded — internal resource reachable via /fetch"}, "/read": {"fixed": "allowed", "dynamic": [{"technique": "deep path traversal with multiple ../ sequences", "bypassed": true, "id": "dyn_path_1", "params": {"name": "../../../../etc/passwd"}, "method": "GET", "evidence": "BYPASS via deep path traversal with multiple ../ sequences; match: root:x:0:0"}], "defenses_active": [], "evidence": "path traversal succeeded — read /etc/passwd via /read"}, "/search": {"fixed": "allowed", "dynamic": [{"technique": "UNION-based SQL injection to extract secrets table", "bypassed": false, "id": "dyn_sqli_1", "params": {"q": "' UNION SELECT flag,2,3 FROM secrets--"}, "method": "GET", "evidence": "no match for detect_pattern (HTTP 500)"}], "defenses_active": [], "evidence": "SQL injection succeeded — extracted data from secrets or bypassed auth"}, "/render": {"fixed": "allowed", "dynamic": [{"technique": "basic Jinja2 SSTI arithmetic expression evaluation", "bypassed": true, "id": "dyn_ssti_1", "params": {"template": "{{7*7}}"}, "method": "POST", "evidence": "BYPASS via basic Jinja2 SSTI arithmetic expression evaluation; match: 49"}], "defenses_active": [], "evidence": "SSTI succeeded — template injection executed on server"}, "/load": {"fixed": "allowed", "dynamic": [{"technique": "pickle RCE via __reduce__ executing id command", "bypassed": false, "id": "dyn_deser_1", "params": {"data": "gASVKAAAAAAAAACMBXBvc2l4lIwGc3lzdGVtlJOUjA9pZCA+IC90bXAvaWQudHh0lIWUUpQu"}, "method": "POST", "evidence": "no match for detect_pattern (HTTP 500)"}], "defenses_active": [], "evidence": "insecure deserialization RCE succeeded via /load"}}, "policy_changes": ["controls.mounts.bind: - [{'host_path': '/', 'container_path': '/host', 'readonly': True}, {'host_path': '/var/run/docker.sock', 'container_path': '/var/run/docker.sock', 'readonly': False}]"]}];
+const ENDPOINTS = [{"path": "/ping", "vuln": "Command Injection", "cwe": "CWE-78", "icon": "&#128268;"}, {"path": "/fetch", "vuln": "SSRF", "cwe": "CWE-918", "icon": "&#127760;"}, {"path": "/read", "vuln": "Path Traversal", "cwe": "CWE-22", "icon": "&#128193;"}, {"path": "/search", "vuln": "SQL Injection", "cwe": "CWE-89", "icon": "&#128202;"}, {"path": "/render", "vuln": "SSTI", "cwe": "CWE-1336", "icon": "&#128209;"}, {"path": "/load", "vuln": "Insecure Deser.", "cwe": "CWE-502", "icon": "&#128230;"}];
+
+let current = 0;
+let playTimer = null;
+let selectedNodeIdx = null;
+
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = (s == null ? '' : String(s));
+  return d.innerHTML;
+}
+
+function renderRoundDots() {
+  const dots = document.getElementById('roundDots');
+  dots.innerHTML = '';
+  GAME.forEach((g, i) => {
+    const d = document.createElement('div');
+    d.className = 'round-dot';
+    if (i === current) d.classList.add('active');
+    if ((g.score || 0) > 0) d.classList.add('positive');
+    else if ((g.score || 0) < 0) d.classList.add('negative');
+    if (g.terminal) d.classList.add('equilibrium');
+    d.textContent = 'R' + i;
+    d.onclick = () => { current = i; render(); };
+    d.title = `Round ${i}: score=${g.score}`;
+    dots.appendChild(d);
+  });
+}
+
+function renderNodes() {
+  const c = document.getElementById('nodes');
+  c.innerHTML = '';
+  const g = GAME[current];
+  const epState = g.endpoint_state || {};
+  ENDPOINTS.forEach((ep, idx) => {
+    const st = epState[ep.path] || {fixed: 'unknown', dynamic: [], defenses_active: []};
+    const node = document.createElement('div');
+    let cls = 'node';
+    let status = 'UNKNOWN';
+    if (st.fixed === 'blocked') { cls += ' blocked'; status = 'BLOCKED'; }
+    else if (st.fixed === 'allowed') { cls += ' allowed'; status = 'BYPASSED'; }
+    else if (st.fixed === 'disabled') { cls += ' disabled'; status = 'DISABLED'; }
+    else { cls += ' unknown'; }
+    if (selectedNodeIdx === idx) cls += ' selected';
+    node.className = cls;
+
+    const numBypass = (st.dynamic || []).filter(d => d.bypassed).length;
+    const numDyn = (st.dynamic || []).length;
+    const bypassBadge = numBypass > 0
+      ? `<div class="bypass-badge">+${numBypass} dyn bypass</div>` : '';
+
+    node.innerHTML = `
+      ${bypassBadge}
+      <div class="node-icon">${ep.icon}</div>
+      <div class="node-path">${ep.path}</div>
+      <div class="node-vuln">${ep.vuln}</div>
+      <div class="node-cwe">${ep.cwe}</div>
+      <div class="node-status">${status}</div>
+    `;
+    node.onclick = () => {
+      selectedNodeIdx = (selectedNodeIdx === idx) ? null : idx;
+      renderNodes();
+      renderNodeDetail();
+    };
+    c.appendChild(node);
+  });
+}
+
+function renderNodeDetail() {
+  const d = document.getElementById('nodeDetail');
+  if (selectedNodeIdx === null) { d.classList.remove('show'); return; }
+  const ep = ENDPOINTS[selectedNodeIdx];
+  const g = GAME[current];
+  const st = (g.endpoint_state || {})[ep.path] || {};
+  let html = `<button class="close" onclick="closeDetail()">&times;</button>`;
+  html += `<h3>${ep.icon} ${ep.path} — ${ep.vuln} <span style="font-size:11px;color:var(--text2);font-family:var(--font)">${ep.cwe}</span></h3>`;
+  html += `<div style="font-size:13px;color:var(--text2);margin-bottom:8px">Fixed probe: <b style="color:var(--${st.fixed==='blocked'?'green':st.fixed==='disabled'?'gray':'red'})">${(st.fixed||'unknown').toUpperCase()}</b></div>`;
+  if (st.evidence) html += `<div class="rationale" style="margin-bottom:10px">${escHtml(st.evidence)}</div>`;
+
+  if ((st.defenses_active || []).length) {
+    html += `<div class="section-label">Active Defenses</div><div class="defenses-list">`;
+    st.defenses_active.forEach(x => html += `<span class="defense-chip">${escHtml(x)}</span>`);
+    html += `</div>`;
+  }
+
+  if ((st.dynamic || []).length) {
+    html += `<div class="section-label">Red Dynamic Attempts (${st.dynamic.length})</div>`;
+    st.dynamic.forEach(p => {
+      const cls = p.bypassed ? 'bypassed' : 'blocked';
+      const tag = p.bypassed ? 'BYPASS!' : 'blocked';
+      const params = p.params ? JSON.stringify(p.params) : '';
+      html += `<div class="payload-item ${cls}">
+        <div><span class="result-tag">${tag}</span> <span class="technique">${escHtml(p.technique)}</span></div>
+        ${params ? `<div class="params">${escHtml(params)}</div>` : ''}
+      </div>`;
+    });
+  }
+  d.innerHTML = html;
+  d.classList.add('show');
+}
+
+function closeDetail() {
+  selectedNodeIdx = null;
+  renderNodes();
+  renderNodeDetail();
+}
+window.closeDetail = closeDetail;
+
+function renderRedPanel() {
+  const g = GAME[current];
+  const red = g.red_move || {};
+  const c = document.getElementById('redContent');
+  let html = '';
+  html += `<div class="section-label">Rationale (round ${g.round})</div>`;
+  html += `<div class="rationale">${escHtml(red.rationale || 'No rationale')}</div>`;
+  html += `<div class="section-label">Stats</div>`;
+  html += `<div style="display:flex;gap:8px;flex-wrap:wrap;font-size:12px;">
+    <span class="defense-chip" style="background:var(--gray-bg);border-color:var(--gray);color:var(--text)">Payloads: ${red.num_payloads || 0}</span>
+    <span class="defense-chip" style="background:${(red.num_bypasses||0)>0?'var(--red-bg)':'var(--green-bg)'};border-color:${(red.num_bypasses||0)>0?'var(--red)':'var(--green)'};color:${(red.num_bypasses||0)>0?'var(--red)':'var(--green)'}">Bypasses: ${red.num_bypasses || 0}</span>
+  </div>`;
+
+  if ((red.payloads || []).length) {
+    html += `<div class="section-label">Payloads Tried</div>`;
+    const bypSet = new Set(red.bypass_techniques || []);
+    red.payloads.forEach(p => {
+      const isBypass = bypSet.has(p.technique);
+      const cls = isBypass ? 'bypassed' : 'blocked';
+      html += `<div class="payload-item ${cls}">
+        <div>
+          <span class="endpoint-tag">${p.endpoint}</span>
+          <span class="result-tag">${isBypass ? 'BYPASS!' : 'blocked'}</span>
+        </div>
+        <div class="technique" style="margin-top:4px">${escHtml(p.technique)}</div>
+      </div>`;
+    });
+  }
+
+  c.innerHTML = html;
+}
+
+function renderBluePanel() {
+  const g = GAME[current];
+  const blue = g.blue_move || {};
+  const c = document.getElementById('blueContent');
+  let html = '';
+  html += `<div class="section-label">Rationale (round ${g.round})</div>`;
+  html += `<div class="rationale">${escHtml(blue.rationale || 'Baseline (no changes)')}</div>`;
+
+  const fp = g.fixed_probes || {};
+  html += `<div class="section-label">Fixed Probe Results</div>`;
+  html += `<div style="display:flex;gap:8px;flex-wrap:wrap;font-size:12px;">
+    <span class="defense-chip" style="background:var(--green-bg);border-color:var(--green);color:var(--green)">Blocked: ${fp.blocked || 0}</span>
+    <span class="defense-chip" style="background:${(fp.allowed||0)>0?'var(--red-bg)':'var(--gray-bg)'};border-color:${(fp.allowed||0)>0?'var(--red)':'var(--gray)'};color:${(fp.allowed||0)>0?'var(--red)':'var(--text)'}">Allowed: ${fp.allowed || 0}</span>
+    <span class="defense-chip" style="background:var(--blue-bg);border-color:var(--blue);color:var(--blue)">Regression: ${fp.passed_reg || 0}/${(fp.passed_reg||0)+(fp.failed_reg||0)}</span>
+  </div>`;
+
+  if ((g.policy_changes || []).length) {
+    html += `<div class="section-label">Policy Changes (vs previous round)</div>`;
+    g.policy_changes.forEach(ch => {
+      html += `<div class="policy-change">${escHtml(ch)}</div>`;
+    });
+  } else if (g.round > 0) {
+    html += `<div class="section-label">Policy Changes</div><div class="rationale" style="color:var(--text2)">No structural changes</div>`;
+  }
+
+  c.innerHTML = html;
+}
+
+function renderScore() {
+  const g = GAME[current];
+  const sd = document.getElementById('scoreDisplay');
+  const s = g.score || 0;
+  sd.textContent = (s >= 0 ? '+' : '') + s;
+  sd.className = 'score-display ' + (s >= 0 ? 'positive' : 'negative');
+}
+
+function renderTitle() {
+  const g = GAME[current];
+  const t = document.getElementById('roundTitle');
+  let suffix = '';
+  if (g.terminal) {
+    const streaks = g.streaks || {};
+    if (streaks.red_bypass >= 2 || streaks.reg_fail >= 2) suffix = ' <span style="color:var(--red)">&#9876; RED WIN</span>';
+    else suffix = ' <span style="color:var(--green)">&#128737; BLUE WIN</span>';
+  }
+  t.innerHTML = `Round ${g.round}${suffix}`;
+}
+
+function render() {
+  selectedNodeIdx = null;
+  renderRoundDots();
+  renderNodes();
+  renderNodeDetail();
+  renderRedPanel();
+  renderBluePanel();
+  renderScore();
+  renderTitle();
+  document.getElementById('prevBtn').disabled = current === 0;
+  document.getElementById('nextBtn').disabled = current === GAME.length - 1;
+}
+
+document.getElementById('prevBtn').onclick = () => { if (current > 0) { current--; render(); } };
+document.getElementById('nextBtn').onclick = () => { if (current < GAME.length-1) { current++; render(); } };
+
+const playBtn = document.getElementById('playBtn');
+playBtn.onclick = () => {
+  if (playTimer) {
+    clearInterval(playTimer); playTimer = null;
+    playBtn.innerHTML = '&#9658; Play';
+  } else {
+    playBtn.innerHTML = '&#10074;&#10074; Pause';
+    playTimer = setInterval(() => {
+      if (current < GAME.length - 1) {
+        current++; render();
+      } else {
+        clearInterval(playTimer); playTimer = null;
+        playBtn.innerHTML = '&#8635; Replay';
+      }
+    }, 2500);
+  }
+};
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft' && current > 0) { current--; render(); }
+  else if (e.key === 'ArrowRight' && current < GAME.length-1) { current++; render(); }
+});
+
+render();
+</script>
+</body>
+</html>

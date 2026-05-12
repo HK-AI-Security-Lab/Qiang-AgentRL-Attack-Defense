@@ -1,0 +1,53 @@
+policy_intent:
+  name: hardened-iter-3
+  target:
+    image: autopatch-target:vuln
+  controls:
+    container_security:
+      run_as_non_root: true
+      allow_privilege_escalation: false
+      read_only_root_fs: false
+      no_new_privileges: true
+      privileged: false
+    capabilities:
+      drop:
+      - ALL
+      add:
+      - NET_RAW
+    seccomp:
+      profile: RuntimeDefault
+    mounts:
+      bind: []
+    namespace:
+      pid_host: false
+    app_waf:
+      enabled: true
+      block_patterns:
+      - '[;&|`$()\\n]'
+      sqli_parameterized: false
+      path_traversal_block: false
+      ssti_sandbox: false
+      pickle_disabled: false
+      ssrf_allowed_schemes:
+      - https
+      ssrf_allowed_hosts:
+      - localhost
+      - 127.0.0.1
+  rationale: 'Iteration 3: Addressing SSRF (CWE-918) — highest-severity still-allowed
+    attack.
+
+    Command injection (CWE-78) remains fully blocked per iteration 2. Container-level
+
+    defences unchanged per one-change-per-iteration rule. Enabled ssrf_allowed_schemes
+
+    to restrict /fetch to https only (blocking file:// and http:// to internal IPs),
+
+    and ssrf_allowed_hosts to allowlist only localhost and 127.0.0.1. This blocks
+
+    red_ssrf payloads that attempted to reach 169.254.169.254 (AWS metadata), file://
+
+    /etc/passwd, host.docker.internal, and integer-encoded IPs (2130706433). Regression
+
+    tests (health, legit_ping, home) remain passing. Path traversal, SQLi, SSTI, and
+
+    deserialization deferred to subsequent iterations.'

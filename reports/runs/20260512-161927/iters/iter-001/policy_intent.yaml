@@ -1,0 +1,37 @@
+policy_intent:
+  name: harden-iter-1-mounts
+  target:
+    image: autopatch-target:vuln
+  controls:
+    container_security:
+      run_as_non_root: false
+      allow_privilege_escalation: true
+      read_only_root_fs: false
+      no_new_privileges: false
+      privileged: false
+    capabilities:
+      drop: []
+      add:
+      - SYS_ADMIN
+    seccomp:
+      profile: Unconfined
+    mounts:
+      bind: []
+    namespace:
+      pid_host: false
+    app_waf:
+      enabled: false
+      block_patterns: []
+  rationale: 'Iteration 1: Fixing container-level mounts (highest-severity category).
+
+    Removed both dangerous bind mounts: /host (host root filesystem) and
+
+    /var/run/docker.sock (Docker daemon socket). These enable container
+
+    escape and lateral movement. Probes probe_host_mount and probe_docker_sock
+
+    were both "allowed" with high severity. Removing mounts blocks these
+
+    immediately without breaking regression tests (health, legit_ping, home
+
+    all pass). Next iteration will address capabilities and seccomp.'
