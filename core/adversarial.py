@@ -97,8 +97,11 @@ def main() -> int:
     history: list[dict] = []
     game_log: list[dict] = []
     last_it_dir: Path | None = None
+    outcome: str = "draw"
+    tracker = judge.OutcomeTracker()
 
-    no_change_streak = 0
+    console.print(f"[dim]Win conditions: Blue needs {judge.BLUE_WIN_STREAK} clean rounds, "
+                  f"Red needs {judge.RED_WIN_STREAK} consecutive bypass rounds[/dim]")
 
     for rnd in range(max_rounds):
         t_round = time.time()
@@ -233,30 +236,48 @@ def main() -> int:
         last_it_dir = it_dir
         game_log.append(round_entry)
 
-        # ── Equilibrium check ──────────────────────────────────
-        terminal = judge.is_terminal(all_results)
-        no_dyn_bypass = len(dyn_bypasses) == 0
-        round_entry["terminal"] = terminal and no_dyn_bypass
+        # ── Win-condition check ────────────────────────────────
+        # R0 is baseline (no defense yet); don't count it toward streaks
+        round_class = judge.classify_round(all_results)
+        if rnd == 0:
+            round_result = None
+        else:
+            round_result = tracker.update(round_class)
 
-        if terminal and no_dyn_bypass:
-            console.print(f"[bold green]EQUILIBRIUM at round {rnd}: "
-                          f"all attacks blocked, no dynamic bypasses, regression green[/bold green]")
+        round_entry["round_class"] = round_class
+        round_entry["streaks"] = {
+            "blue_clean": tracker.blue_clean_streak,
+            "red_bypass": tracker.red_bypass_streak,
+            "reg_fail": tracker.regression_fail_streak,
+        }
+
+        streak_info = (f"streaks: blue_clean={tracker.blue_clean_streak}/"
+                       f"{judge.BLUE_WIN_STREAK}, red_bypass={tracker.red_bypass_streak}/"
+                       f"{judge.RED_WIN_STREAK}, reg_fail={tracker.regression_fail_streak}/"
+                       f"{judge.RED_WIN_STREAK}")
+        console.print(f"[dim]{streak_info}[/dim]")
+
+        if round_result == "blue_win":
+            outcome = "blue_win"
+            round_entry["terminal"] = True
+            console.print(f"[bold green]BLUE WIN at round {rnd}: "
+                          f"all attacks blocked for {judge.BLUE_WIN_STREAK} consecutive rounds[/bold green]")
             break
 
-        if len(history) >= 3:
-            last_scores = [h["score"] for h in history[-3:]]
-            if len(set(last_scores)) == 1 and no_dyn_bypass:
-                no_change_streak += 1
+        if round_result == "red_win":
+            outcome = "red_win"
+            round_entry["terminal"] = True
+            if tracker.regression_fail_streak >= judge.RED_WIN_STREAK:
+                console.print(f"[bold red]RED WIN at round {rnd}: "
+                              f"Blue broke regression for {judge.RED_WIN_STREAK} consecutive rounds[/bold red]")
             else:
-                no_change_streak = 0
-            if no_change_streak >= 2:
-                console.print(f"[yellow]STALEMATE: score unchanged for 3+ rounds, "
-                              f"no dynamic bypasses. Stopping.[/yellow]")
-                round_entry["terminal"] = True
-                break
+                console.print(f"[bold red]RED WIN at round {rnd}: "
+                              f"critical bypasses persisted for {judge.RED_WIN_STREAK} consecutive rounds[/bold red]")
+            break
 
         if rnd == max_rounds - 1:
-            console.print(f"[yellow]hit MAX_ROUNDS={max_rounds}[/yellow]")
+            outcome = "draw"
+            console.print(f"[yellow]DRAW: hit MAX_ROUNDS={max_rounds} without decisive victory[/yellow]")
             break
 
         prev_yaml = current_yaml
@@ -267,17 +288,31 @@ def main() -> int:
 
     runner.down()
 
+    game_log_meta = {
+        "rounds": game_log,
+        "outcome": outcome,
+        "total_rounds": len(game_log),
+        "blue_model": blue_m,
+        "red_model": red_m,
+    }
     game_log_path = run_dir / "game_log.json"
-    game_log_path.write_text(json.dumps(game_log, indent=2, ensure_ascii=False))
+    game_log_path.write_text(json.dumps(game_log_meta, indent=2, ensure_ascii=False))
     console.print(f"game_log: [bold]{game_log_path}[/bold]")
+
+    outcome_label = {"blue_win": "BLUE WIN", "red_win": "RED WIN", "draw": "DRAW"}[outcome]
+    style = {"blue_win": "bold green", "red_win": "bold red", "draw": "bold yellow"}[outcome]
+    console.print(Panel(
+        f"[{style}]{outcome_label}[/{style}] after {len(game_log)} rounds\n"
+        f"Blue: {blue_m} | Red: {red_m}",
+        title="[bold]GAME RESULT[/bold]",
+    ))
 
     report = reporter.write_report(run_dir)
     console.rule("[bold]done")
     console.print(f"report: [bold]{report}[/bold]")
 
-    # Generate HTML visualization
     from core.visualizer import generate_html
-    html_path = generate_html(run_dir, game_log)
+    html_path = generate_html(run_dir, game_log_meta)
     console.print(f"visualization: [bold cyan]{html_path}[/bold cyan]")
 
     return 0

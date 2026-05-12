@@ -377,7 +377,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
 
 <header>
   <h1><span class="red">&#9876;</span> Red <span style="color:var(--text2)">vs</span> Blue <span class="blue">&#128737;</span> · AutoPatch-RL</h1>
-  <div class="meta">%%MODEL%% · rounds: <b>%%NUM_ROUNDS%%</b></div>
+  <div class="meta">%%MODEL%% · rounds: <b>%%NUM_ROUNDS%%</b> · <span style="color:%%OUTCOME_COLOR%%;font-weight:700">%%OUTCOME%%</span></div>
 </header>
 
 <div class="nav">
@@ -596,7 +596,11 @@ function renderTitle() {
   const g = GAME[current];
   const t = document.getElementById('roundTitle');
   let suffix = '';
-  if (g.terminal) suffix = ' &#9733; EQUILIBRIUM';
+  if (g.terminal) {
+    const streaks = g.streaks || {};
+    if (streaks.red_bypass >= 2 || streaks.reg_fail >= 2) suffix = ' <span style="color:var(--red)">&#9876; RED WIN</span>';
+    else suffix = ' <span style="color:var(--green)">&#128737; BLUE WIN</span>';
+  }
   t.innerHTML = `Round ${g.round}${suffix}`;
 }
 
@@ -645,20 +649,39 @@ render();
 </html>"""
 
 
-def generate_html(run_dir: Path, game_log: list[dict[str, Any]]) -> Path:
-    base = os.environ.get("OPENAI_MODEL", "unknown")
-    blue_m = os.environ.get("BLUE_MODEL") or base
-    red_m = os.environ.get("RED_MODEL") or base
+def generate_html(run_dir: Path, game_log: list[dict[str, Any]] | dict[str, Any]) -> Path:
+    """Generate HTML. game_log can be a list (legacy) or dict with 'rounds' key."""
+    if isinstance(game_log, dict):
+        rounds = game_log.get("rounds", [])
+        gl_outcome = game_log.get("outcome", "draw")
+        blue_m = game_log.get("blue_model", "?")
+        red_m = game_log.get("red_model", "?")
+    else:
+        rounds = game_log
+        gl_outcome = "draw"
+        base = os.environ.get("OPENAI_MODEL", "unknown")
+        blue_m = os.environ.get("BLUE_MODEL") or base
+        red_m = os.environ.get("RED_MODEL") or base
+
     if blue_m == red_m:
         model_label = f"model: <b>{blue_m}</b>"
     else:
-        model_label = f"<span style='color:var(--blue)'>Blue=<b>{blue_m}</b></span> · <span style='color:var(--red)'>Red=<b>{red_m}</b></span>"
-    enriched = _enrich_game(run_dir, game_log)
+        model_label = (f"<span style='color:var(--blue)'>Blue=<b>{blue_m}</b></span> · "
+                       f"<span style='color:var(--red)'>Red=<b>{red_m}</b></span>")
+
+    outcome_labels = {"blue_win": "🛡️ BLUE WIN", "red_win": "⚔️ RED WIN", "draw": "🤝 DRAW"}
+    outcome_label = outcome_labels.get(gl_outcome, gl_outcome.upper())
+    outcome_color = {"blue_win": "var(--blue)", "red_win": "var(--red)", "draw": "var(--yellow)"}
+    o_color = outcome_color.get(gl_outcome, "var(--text)")
+
+    enriched = _enrich_game(run_dir, rounds)
     html = _TEMPLATE.replace("%%GAME_JSON%%", json.dumps(enriched, ensure_ascii=False))
     html = html.replace("%%ENDPOINTS_JSON%%", json.dumps(ENDPOINTS, ensure_ascii=False))
-    html = html.replace("%%NUM_ROUNDS%%", str(len(game_log)))
+    html = html.replace("%%NUM_ROUNDS%%", str(len(rounds)))
     html = html.replace("%%MODEL%%", model_label)
     html = html.replace("%%RUN_NAME%%", run_dir.name)
+    html = html.replace("%%OUTCOME%%", outcome_label)
+    html = html.replace("%%OUTCOME_COLOR%%", o_color)
     out = run_dir / "battle.html"
     out.write_text(html)
     return out
