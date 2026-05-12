@@ -36,8 +36,8 @@ WEIGHTS = {
 
 ATTACK_CATEGORIES = {"attack_surface", "red_team", "red_dynamic"}
 
-BLUE_WIN_STREAK = int(os.environ.get("BLUE_WIN_STREAK", "3"))
-RED_WIN_STREAK = int(os.environ.get("RED_WIN_STREAK", "2"))
+BLUE_WIN_STREAK = int(os.environ.get("BLUE_WIN_STREAK", "4"))
+RED_WIN_STREAK = int(os.environ.get("RED_WIN_STREAK", "3"))
 
 
 def score(results: list[dict[str, Any]]) -> dict[str, Any]:

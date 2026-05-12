@@ -30,7 +30,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from agents import policy_writer, red_agent, reporter
-from core import judge, policy_compiler, probe_runner, red_probe_runner, runner, state_store
+from core import judge, policy_compiler, probe_runner, red_probe_runner, runner, state_store, rationale_auditor
 
 ROOT = Path(__file__).resolve().parent.parent
 BASELINE_POLICY = ROOT / "policies" / "baseline" / "policy_intent.yaml"
@@ -203,6 +203,14 @@ def main() -> int:
         }
         round_entry["dynamic_probes"] = _probe_summary(dyn_results) if dyn_results else None
 
+        # ── Rationale audit ────────────────────────────────────
+        audit = rationale_auditor.audit(prev_yaml, current_yaml, fixed_results + dyn_results, blue_rationale)
+        round_entry["rationale_audit"] = audit
+        if not audit["verified"]:
+            console.print(f"[yellow]⚠ Rationale audit: unfixed claims {audit['unfixed_claims']}[/yellow]")
+        if audit["changed_categories"]:
+            console.print(f"[dim]policy changed: {audit['changed_categories']}[/dim]")
+
         # ── Score ──────────────────────────────────────────────
         all_results = fixed_results + dyn_results
         score_dict = judge.score(all_results)
@@ -211,6 +219,16 @@ def main() -> int:
         round_entry["score"] = score_dict["total"]
         round_entry["score_breakdown"] = score_dict["breakdown"]
         round_entry["duration_s"] = round(time.time() - t_round, 1)
+
+        # ── Policy diff ────────────────────────────────────────
+        pdiff = state_store.policy_diff(prev_yaml, current_yaml)
+        round_entry["policy_diff"] = pdiff
+        if pdiff and pdiff != "(no changes)" and pdiff != "(baseline — no previous policy)":
+            console.print(Panel(
+                f"[white]{pdiff}[/white]",
+                title=f"[bold]Policy Diff (Round {rnd})[/bold]",
+                border_style="cyan",
+            ))
 
         # ── Persist ────────────────────────────────────────────
         state_store.save_iteration(it_dir, current_yaml, all_results, score_dict, prev_yaml)
@@ -281,6 +299,19 @@ def main() -> int:
             break
 
         prev_yaml = current_yaml
+
+    # ── Full diff summary ─────────────────────────────────────
+    baseline_yaml = BASELINE_POLICY.read_text()
+    full_diff = state_store.policy_diff(baseline_yaml, current_yaml)
+    (run_dir / "full_policy_diff.txt").write_text(
+        f"=== Full Policy Diff: Baseline → Final (Round {len(game_log)-1}) ===\n\n"
+        + full_diff + "\n"
+    )
+    console.print(Panel(
+        f"[white]{full_diff}[/white]",
+        title="[bold cyan]Full Policy Evolution: Baseline → Final[/bold cyan]",
+        border_style="cyan",
+    ))
 
     # ── Finalize ───────────────────────────────────────────────
     if last_it_dir:
