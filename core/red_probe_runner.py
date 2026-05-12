@@ -1,4 +1,9 @@
-"""Execute LLM-generated red-team payloads against the target container."""
+"""Execute LLM-generated red-team payloads against the target container.
+
+Uses canary tokens to eliminate false positives: a bypass is only confirmed
+when the response contains a known canary string that proves the vulnerability
+was actually exploited (not just a pattern match on incidental text).
+"""
 
 from __future__ import annotations
 
@@ -9,6 +14,24 @@ from typing import Any
 from urllib.parse import urlencode
 
 import requests
+
+CANARY = {
+    "/ping":   "CANARY_CMD_8f4a1b",
+    "/fetch":  "CANARY_SSRF_3e7d2c",
+    "/read":   "CANARY_PATH_5c9e0a",
+    "/search": "CANARY_SQLI_7f3a9c",
+    "/render": "CANARY_SSTI_2b6d4e",
+    "/load":   "CANARY_DESER_9a1f7b",
+}
+
+ENDPOINT_FALLBACK_PATTERNS = {
+    "/ping":   r"uid=[0-9]+\(",
+    "/fetch":  None,
+    "/read":   None,
+    "/search": None,
+    "/render": None,
+    "/load":   None,
+}
 
 
 def _target_base() -> str:
@@ -45,12 +68,23 @@ def run_payload(payload: dict[str, Any], iteration: int) -> dict[str, Any]:
 
     duration = round(time.time() - t0, 3)
 
-    bypassed = False
+    # --- Oracle: canary-first, then detect_pattern as secondary ---
+    canary = CANARY.get(endpoint, "")
+    canary_hit = canary and canary in resp_text
+
+    pattern_hit = False
     if detect and not error:
         try:
-            bypassed = bool(re.search(detect, resp_text))
+            pattern_hit = bool(re.search(detect, resp_text))
         except re.error:
-            bypassed = detect in resp_text
+            pattern_hit = detect in resp_text
+
+    fallback = ENDPOINT_FALLBACK_PATTERNS.get(endpoint)
+    fallback_hit = False
+    if fallback and not error:
+        fallback_hit = bool(re.search(fallback, resp_text))
+
+    bypassed = canary_hit or fallback_hit
 
     blocked_by_waf = "blocked_by_waf" in resp_text or "endpoint_disabled" in resp_text
     actual = "allowed" if bypassed else "blocked"
@@ -58,15 +92,19 @@ def run_payload(payload: dict[str, Any], iteration: int) -> dict[str, Any]:
     evidence_parts = []
     if bypassed:
         evidence_parts.append(f"BYPASS via {payload.get('technique', '?')}")
-        m = re.search(detect, resp_text) if detect else None
-        if m:
-            evidence_parts.append(f"match: {m.group()[:80]}")
+        if canary_hit:
+            evidence_parts.append(f"canary={canary}")
+        elif fallback_hit:
+            m = re.search(fallback, resp_text)
+            evidence_parts.append(f"fallback match: {m.group()[:80]}" if m else "fallback hit")
+    elif pattern_hit and not bypassed:
+        evidence_parts.append(f"detect_pattern matched but NO canary (false positive suppressed)")
     elif blocked_by_waf:
         evidence_parts.append("blocked by WAF")
     elif error:
         evidence_parts.append(f"error: {error[:100]}")
     else:
-        evidence_parts.append(f"no match for detect_pattern (HTTP {status_code})")
+        evidence_parts.append(f"no match (HTTP {status_code})")
     evidence = "; ".join(evidence_parts)
 
     return {

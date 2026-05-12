@@ -26,7 +26,7 @@ echo "---raw---"
 for i in "${!urls[@]}"; do
   u="${urls[$i]}"
   resp=$(curl -sS --max-time 4 "${BASE}?url=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$u'))" 2>/dev/null || echo "$u")" 2>&1) || true
-  if echo "$resp" | grep -qE '"status":\s*"ok"|"status":\s*200|root:x:|meta-data'; then
+  if echo "$resp" | grep -qF 'CANARY_SSRF_3e7d2c'; then
     echo "URL[$i] SSRF_SUCCESS: ${u:0:80}"
     echo "RESPONSE_SNIPPET: ${resp:0:200}"
     SUCCESS=0

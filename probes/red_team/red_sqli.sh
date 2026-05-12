@@ -25,8 +25,8 @@ echo "---raw---"
 for i in "${!payloads[@]}"; do
   p="${payloads[$i]}"
   resp=$(curl -sS --max-time 4 "${BASE}?q=${p}" 2>&1) || true
-  if echo "$resp" | grep -qE 'FLAG\{|sql_injection_pwned'; then
-    echo "PAYLOAD[$i] SQLI_SUCCESS: ${p:0:80}"
+  if echo "$resp" | grep -qF 'CANARY_SQLI_7f3a9c'; then
+    echo "PAYLOAD[$i] SQLI_SUCCESS (canary found): ${p:0:80}"
     echo "RESPONSE_SNIPPET: ${resp:0:300}"
     SUCCESS=0
   elif echo "$resp" | grep -qE '"role":"admin"' && echo "$p" | grep -qi "OR"; then

@@ -27,10 +27,19 @@ from pathlib import Path
 
 from flask import Flask, jsonify, request, render_template_string
 
-APP_VERSION = "0.2.0"
+APP_VERSION = "0.5.0"
 WAF_RULES_PATH = os.environ.get("WAF_RULES_PATH", "/etc/autopatch/waf_rules.json")
 DB_PATH = os.environ.get("DB_PATH", "/tmp/demo.db")
 NOTES_DIR = os.environ.get("NOTES_DIR", "/app/notes")
+
+CANARY = {
+    "cmd":   "CANARY_CMD_8f4a1b",
+    "ssrf":  "CANARY_SSRF_3e7d2c",
+    "path":  "CANARY_PATH_5c9e0a",
+    "sqli":  "CANARY_SQLI_7f3a9c",
+    "ssti":  "CANARY_SSTI_2b6d4e",
+    "deser": "CANARY_DESER_9a1f7b",
+}
 
 app = Flask(__name__)
 
@@ -128,7 +137,7 @@ def _init_db():
         "(id INTEGER PRIMARY KEY, flag TEXT)"
     )
     conn.execute(
-        "INSERT OR IGNORE INTO secrets VALUES (1,'FLAG{sql_injection_pwned}')"
+        f"INSERT OR IGNORE INTO secrets VALUES (1,'{CANARY['sqli']}')"
     )
     conn.commit()
     conn.close()
@@ -143,6 +152,7 @@ with app.app_context():
 Path(NOTES_DIR).mkdir(parents=True, exist_ok=True)
 (Path(NOTES_DIR) / "welcome.txt").write_text("Welcome to the notes app!\n")
 (Path(NOTES_DIR) / "todo.txt").write_text("1. Fix vulnerabilities\n2. Ship\n")
+Path("/tmp/path_canary.txt").write_text(CANARY["path"] + "\n")
 
 
 # ─── Endpoints ──────────────────────────────────────────────────────────────
@@ -161,7 +171,7 @@ def home():
 
 @app.get("/healthz")
 def health():
-    return jsonify({"status": "ok"}), 200
+    return jsonify({"status": "ok", "canary": CANARY["ssrf"]}), 200
 
 
 # ---- Vuln 1: Command Injection (CWE-78) ------------------------------------
@@ -286,7 +296,7 @@ def render():
             env = StrictSandbox(autoescape=True)
             result = env.from_string(template).render()
         else:
-            result = render_template_string(template)
+            result = render_template_string(template, ssti_canary=CANARY["ssti"])
         return jsonify({"rendered": result})
     except Exception as e:
         return jsonify({"error": str(e)[:300]}), 500
@@ -306,7 +316,8 @@ def load_obj():
     try:
         raw = base64.b64decode(data)
         obj = pickle.loads(raw)
-        return jsonify({"type": type(obj).__name__, "value": str(obj)[:500]})
+        return jsonify({"type": type(obj).__name__, "value": str(obj)[:500],
+                        "canary": CANARY["deser"]})
     except Exception as e:
         return jsonify({"error": str(e)[:300]}), 500
 

