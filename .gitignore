@@ -9,3 +9,4 @@ policies/generated/*/
 !reports/runs/.gitkeep
 !policies/generated/.gitkeep
 policies/generated/latest
+doc/
