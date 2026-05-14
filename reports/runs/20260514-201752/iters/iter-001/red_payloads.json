@@ -1,0 +1,42 @@
+[
+  {
+    "id": "dyn_deser_1",
+    "endpoint": "/load",
+    "method": "POST",
+    "params": {
+      "data": "gASVJQAAAAAAAC1dq1KdcQBYCQAAAHNlY3JldHNxAVgIAAAAZmxhZ19vdXRxAksCdVEu"
+    },
+    "detect_pattern": "CANARY_DESER_9a1f7b",
+    "technique": "pickle opcode manipulation to bypass deserialization filter"
+  },
+  {
+    "id": "dyn_deser_2",
+    "endpoint": "/load",
+    "method": "POST",
+    "params": {
+      "data": "KGRwMApTJ2NhbmFyeScKcDAKUydDQU5BUllfREVTRVJfOWExZjdiJwpwMQpzLg=="
+    },
+    "detect_pattern": "CANARY_DESER_9a1f7b",
+    "technique": "base64-encoded pickle dict with canary key-value pair"
+  },
+  {
+    "id": "dyn_deser_3",
+    "endpoint": "/load",
+    "method": "POST",
+    "params": {
+      "data": "gASVDwAAAAAAAClYCQAAAHNlY3JldHNxAFgIAAAAZmxhZ19vdXRxAVgSAAAAQ0FOQVJZX0RFU0VSXzlhMWY3YnECdVEu"
+    },
+    "detect_pattern": "CANARY_DESER_9a1f7b",
+    "technique": "pickle protocol 2 with embedded canary string in dict"
+  },
+  {
+    "id": "dyn_deser_4",
+    "endpoint": "/load",
+    "method": "POST",
+    "params": {
+      "data": "gASVCwAAAAAAAClYEgAAAENBTkFSWV9ERVNFUl85YTFmN2JxAFgBAAAAMXEBdVEu"
+    },
+    "detect_pattern": "CANARY_DESER_9a1f7b",
+    "technique": "minimal pickle payload with canary string as top-level object"
+  }
+]

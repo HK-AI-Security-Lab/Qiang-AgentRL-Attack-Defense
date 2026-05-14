@@ -1,0 +1,3 @@
+[app_waf]
+  - ssti_sandbox: false
+  + ssti_sandbox: true

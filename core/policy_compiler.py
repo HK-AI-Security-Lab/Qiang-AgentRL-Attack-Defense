@@ -91,22 +91,20 @@ def _waf_rules(pi: dict[str, Any]) -> dict[str, Any]:
 
 def compile_intent(intent_path: Path, iter_dir: Path) -> dict[str, Path]:
     iter_dir.mkdir(parents=True, exist_ok=True)
-    data = yaml.safe_load(intent_path.read_text())
+    data = yaml.safe_load(intent_path.read_text(encoding='utf-8'))
     pi = data["policy_intent"]
 
     waf_json = iter_dir / "waf_rules.json"
-    waf_json.write_text(json.dumps(_waf_rules(pi), indent=2))
+    waf_json.write_text(json.dumps(_waf_rules(pi), indent=2), encoding='utf-8')
 
     docker_lines = _docker_run_lines(pi, iter_dir)
     run_sh = iter_dir / "docker_run.sh"
-    run_sh.write_text(
-        "#!/usr/bin/env bash\nset -euo pipefail\n"
-        "docker rm -f "
-        + CONTAINER_NAME
-        + " >/dev/null 2>&1 || true\n"
-        + "\n".join(docker_lines)
-        + "\n"
-    )
+    run_sh.write_text("#!/usr/bin/env bash\nset -euo pipefail\n"
+    "docker rm -f "
+    + CONTAINER_NAME
+    + " >/dev/null 2>&1 || true\n"
+    + "\n".join(docker_lines)
+    + "\n", encoding='utf-8')
     run_sh.chmod(0o755)
 
     return {"docker_run": run_sh, "waf_rules": waf_json}

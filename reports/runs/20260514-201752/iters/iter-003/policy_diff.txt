@@ -1,0 +1,3 @@
+[app_waf]
+  - block_patterns: [[;&|`$()], \$\(]
+  + block_patterns: [[;&|`$()], \$\(, [\n\t\r]]

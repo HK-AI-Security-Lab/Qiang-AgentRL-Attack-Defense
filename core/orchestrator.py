@@ -17,7 +17,7 @@ from rich.console import Console
 from rich.table import Table
 
 from agents import policy_writer, red_agent, reporter
-from core import judge, policy_compiler, probe_runner, red_probe_runner, runner, state_store
+from core import attack_graph, attack_graph_html, judge, policy_compiler, probe_runner, red_probe_runner, runner, state_store
 
 ROOT = Path(__file__).resolve().parent.parent
 BASELINE_POLICY = ROOT / "policies" / "baseline" / "policy_intent.yaml"
@@ -56,8 +56,13 @@ def _print_probe_table(it: int, results: list[dict], title_suffix: str = "") -> 
 
 def _link_latest(iter_dir: Path) -> None:
     LATEST_LINK.parent.mkdir(parents=True, exist_ok=True)
-    if LATEST_LINK.exists() or LATEST_LINK.is_symlink():
+    # On Windows symlink_to often fails (no dev mode / admin), so we fall back
+    # to copytree below. That means LATEST_LINK can be either a symlink (mac/linux)
+    # or a real directory (windows). Handle both before recreating it.
+    if LATEST_LINK.is_symlink() or LATEST_LINK.is_file():
         LATEST_LINK.unlink()
+    elif LATEST_LINK.is_dir():
+        shutil.rmtree(LATEST_LINK)
     try:
         LATEST_LINK.symlink_to(iter_dir.resolve(), target_is_directory=True)
     except OSError:
@@ -79,7 +84,7 @@ def main() -> int:
     run_dir = state_store.new_run_dir()
     console.print(f"run_dir: [yellow]{run_dir}[/yellow]")
 
-    current_yaml = BASELINE_POLICY.read_text()
+    current_yaml = BASELINE_POLICY.read_text(encoding='utf-8')
     prev_yaml: str | None = None
     history: list[dict] = []
     last_it_dir: Path | None = None
@@ -88,13 +93,13 @@ def main() -> int:
         console.rule(f"[bold green]iter {it}")
         it_dir = state_store.iter_dir(run_dir, it)
         intent_path = it_dir / "policy_intent.yaml"
-        intent_path.write_text(current_yaml)
+        intent_path.write_text(current_yaml, encoding='utf-8')
 
         try:
             policy_compiler.compile_intent(intent_path, it_dir)
         except Exception as e:
             console.print(f"[red]compile failed:[/red] {e}")
-            current_yaml = BASELINE_POLICY.read_text()
+            current_yaml = BASELINE_POLICY.read_text(encoding='utf-8')
             continue
 
         _link_latest(it_dir)
@@ -105,7 +110,7 @@ def main() -> int:
             console.print(f"[red]docker up failed:[/red] {e}")
             console.print("policy that failed to start:")
             console.print(current_yaml)
-            current_yaml = BASELINE_POLICY.read_text() if prev_yaml is None else prev_yaml
+            current_yaml = BASELINE_POLICY.read_text(encoding='utf-8') if prev_yaml is None else prev_yaml
             continue
 
         if not runner.wait_ready(timeout=20.0):
@@ -121,7 +126,7 @@ def main() -> int:
         waf_config = {}
         if waf_json_path.exists():
             import json as _json
-            waf_config = _json.loads(waf_json_path.read_text())
+            waf_config = _json.loads(waf_json_path.read_text(encoding='utf-8'))
 
         payloads, red_rationale, red_source = red_agent.generate_payloads(
             waf_config, fixed_results, it, history,
@@ -149,28 +154,23 @@ def main() -> int:
         if payloads:
             import json as _json
             (it_dir / "red_payloads.json").write_text(
-                _json.dumps(payloads, indent=2, ensure_ascii=False)
+                _json.dumps(payloads, indent=2, ensure_ascii=False), encoding='utf-8'
             )
             (it_dir / "red_dynamic_results.json").write_text(
-                _json.dumps(dyn_results, indent=2, ensure_ascii=False)
+                _json.dumps(dyn_results, indent=2, ensure_ascii=False), encoding='utf-8'
             )
 
-        history.append(
-            {
-                "iter": it,
-                "score": score_dict["total"],
-                "failing": [
-                    r["probe_id"]
-                    for r in results
-                    if (r["category"] in judge.ATTACK_CATEGORIES and r["actual"] == "allowed")
-                    or (r["category"] == "regression" and r["actual"] == "fail")
-                ],
-                "dyn_bypasses": [
-                    r["probe_id"]
-                    for r in dyn_results
-                    if r["actual"] == "allowed"
-                ],
-            }
+        # ── Attack graph (per-round) ────────────────────────────────
+        # Build the endpoint x technique bipartite graph and merge prior
+        # rounds' provenance so the agent can see severed/novel edges.
+        prior_graphs = attack_graph.load_run_graphs(run_dir)
+        round_graph = attack_graph.build_round_graph(it, results, dyn_results)
+        round_graph = attack_graph.merge_history(round_graph, prior_graphs)
+        attack_graph.write_graph(it_dir, round_graph)
+        console.print(
+            f"[dim]attack_graph: edges={round_graph['stats']['total_edges']}, "
+            f"bypassed={round_graph['stats']['bypassed']}, "
+            f"compromised_endpoints={round_graph['stats']['compromised_endpoints']}[/dim]"
         )
         last_it_dir = it_dir
 
@@ -183,7 +183,7 @@ def main() -> int:
             break
 
         prev_yaml = current_yaml
-        new_yaml, source = policy_writer.propose_next(current_yaml, results, history)
+        new_yaml, source = policy_writer.propose_next(current_yaml, results, history, attack_graph=round_graph)
         console.print(f"[dim]policy_writer source={source}[/dim]")
         current_yaml = new_yaml
 
@@ -192,8 +192,11 @@ def main() -> int:
 
     runner.down()
     report = reporter.write_report(run_dir)
+    graph_html = attack_graph_html.generate_html(run_dir)
     console.rule("[bold]done")
     console.print(f"report: [bold]{report}[/bold]")
+    if graph_html is not None:
+        console.print(f"attack graph: [bold]{graph_html}[/bold]")
     return 0
 
 

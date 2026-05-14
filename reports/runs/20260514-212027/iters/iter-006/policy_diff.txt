@@ -1,0 +1,5 @@
+[app_waf]
+  - block_patterns: [[;&|`$()], [\\r\\n]]
+  + block_patterns: [[;&|`$()], [\\r\\n], [\s]id[\s]]
+  - sqli_parameterized: false
+  + sqli_parameterized: true

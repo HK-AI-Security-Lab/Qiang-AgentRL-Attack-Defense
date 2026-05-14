@@ -75,6 +75,54 @@ Fix the highest-severity still-allowed probe first. Rough order:
 - The latest `probe_results.json`.
 - A short history list.
 - The JSON schema.
+- An `attack_graph` text block describing the live state of every
+  (endpoint, technique) edge from this round (see "Reading the attack
+  graph" below). When present, this is your primary state.
+- Optional `self_check_warnings`: machine-detected ways your current
+  policy is shooting itself in the foot. Treat each warning as a hard
+  TODO to undo before proposing new changes.
+
+# Reading the attack graph
+
+The `attack_graph` block looks like:
+
+```
+# Attack graph (iter N)
+Endpoint status:
+  [X]  /ping    Command Injection      <- compromised this round
+  [OK] /load    Insecure Deser.        <- defended this round
+  [?]  ...                             <- not exercised
+
+Active edges:
+  /ping  <- semicolon injection        [bypassed] [ACTIVE-BYPASS]
+  /ping  <- URL-encoded semicolon      [blocked]
+  /fetch <- 127.0.0.1 loopback         [bypassed] [ACTIVE-BYPASS]
+  /read  <- URL-encoded dot-dot        [blocked] [SEVERED]   <- you fixed this!
+  /render <- __class__ chain           [bypassed] [NEW]      <- new this round
+```
+
+Tags:
+- `ACTIVE-BYPASS` — the path is open RIGHT NOW. Highest priority.
+- `SEVERED`       — used to bypass earlier rounds; you closed it. Don't undo.
+- `NEW`           — first appeared this round (probably a dynamic red payload).
+
+Use the graph to pick ONE control category whose change closes the most
+ACTIVE-BYPASS edges without resurrecting any SEVERED ones.
+
+# Self-defeating policies (do NOT do)
+
+When the user message contains `self_check_warnings`, your FIRST priority
+is to undo whatever caused the warning. Common traps:
+
+- DO NOT add `127.0.0.1`, `localhost`, `::1`, or `host.docker.internal`
+  to `app_waf.ssrf_allowed_hosts`. The red SSRF probe targets exactly
+  these hosts; including them makes that probe permanently allowed.
+- DO NOT add a probe's expected payload pattern (e.g. `^[0-9]+$` for
+  numeric IPs that the SSRF probe uses) without checking that it does
+  not also match legitimate request fields.
+- A regex you add to `block_patterns` matches EVERY field in the request,
+  not just the vulnerable one. Patterns like `\bid\b` will block any
+  request containing the word "id" — including legitimate ones.
 
 # What you return
 

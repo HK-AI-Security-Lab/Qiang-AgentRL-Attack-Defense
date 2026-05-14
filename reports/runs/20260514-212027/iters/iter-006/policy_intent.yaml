@@ -1,0 +1,63 @@
+policy_intent:
+  name: hardened-iter-6
+  target:
+    image: autopatch-target:vuln
+  controls:
+    container_security:
+      run_as_non_root: false
+      allow_privilege_escalation: false
+      read_only_root_fs: false
+      no_new_privileges: true
+      privileged: false
+    capabilities:
+      drop:
+      - ALL
+      add:
+      - NET_RAW
+    seccomp:
+      profile: RuntimeDefault
+    mounts:
+      bind: []
+    namespace:
+      pid_host: false
+    app_waf:
+      enabled: true
+      block_patterns:
+      - '[;&|`$()]'
+      - '[\\r\\n]'
+      - '[\s]id[\s]'
+      disabled_endpoints:
+      - /load
+      ssrf_allowed_schemes:
+      - http
+      - https
+      ssrf_allowed_hosts:
+      - example.com
+      - api.example.com
+      path_traversal_block: true
+      sqli_parameterized: true
+      ssti_sandbox: true
+      pickle_disabled: false
+  rationale: 'Iteration 5 shows 5 ACTIVE-BYPASS endpoints. Highest-severity still-allowed
+
+    probes: /ping command injection (semicolon, &&, |, newline all bypassed),
+
+    /fetch SSRF (127.0.0.1, localhost, decimal IP 2130706433 all bypassed),
+
+    /read path traversal (dot-dot, URL-encoded variants bypassed), /search SQLi
+
+    (URL-encoded UNION bypassed), /render SSTI (canary leak, math eval, RCE
+
+    bypassed despite ssti_sandbox enabled). Applying ONE-CHANGE-PER-ITERATION to
+
+    app_waf category. Prioritizing /ping command injection by adding pattern
+
+    ''[\s]id[\s]'' to block_patterns to catch the injected `id` command with
+
+    whitespace delimiters. Also enabling sqli_parameterized: true to block
+
+    /search SQLi URL-encoded UNION payloads. These two fixes address the most
+
+    active bypasses. Next iteration will tighten SSRF allowlist to exclude
+
+    127.0.0.1, localhost, and decimal IP encodings.'

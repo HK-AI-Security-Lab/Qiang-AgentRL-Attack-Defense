@@ -35,7 +35,7 @@ PROBE_TO_ENDPOINT = {
 def _read_json(p: Path) -> Any:
     if p.exists():
         try:
-            return json.loads(p.read_text())
+            return json.loads(p.read_text(encoding='utf-8'))
         except Exception:
             return None
     return None
@@ -86,7 +86,7 @@ def _enrich_game(run_dir: Path, game_log: list[dict]) -> list[dict]:
         probe_results = _read_json(it_dir / "probe_results.json") or []
         red_payloads = _read_json(it_dir / "red_payloads.json") or []
         red_dyn = _read_json(it_dir / "red_dynamic_results.json") or []
-        curr_policy_yaml = (it_dir / "policy_intent.yaml").read_text() if (it_dir / "policy_intent.yaml").exists() else None
+        curr_policy_yaml = (it_dir / "policy_intent.yaml").read_text(encoding='utf-8') if (it_dir / "policy_intent.yaml").exists() else None
 
         # Per-endpoint state (fixed probe outcome)
         endpoint_state: dict[str, dict] = {}
@@ -683,5 +683,5 @@ def generate_html(run_dir: Path, game_log: list[dict[str, Any]] | dict[str, Any]
     html = html.replace("%%OUTCOME%%", outcome_label)
     html = html.replace("%%OUTCOME_COLOR%%", o_color)
     out = run_dir / "battle.html"
-    out.write_text(html)
+    out.write_text(html, encoding='utf-8')
     return out

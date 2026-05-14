@@ -1,0 +1,64 @@
+policy_intent:
+  name: hardened-iter-4
+  target:
+    image: autopatch-target:vuln
+  controls:
+    container_security:
+      run_as_non_root: false
+      allow_privilege_escalation: false
+      read_only_root_fs: false
+      no_new_privileges: true
+      privileged: false
+    capabilities:
+      drop:
+      - ALL
+      add:
+      - NET_RAW
+    seccomp:
+      profile: RuntimeDefault
+    mounts:
+      bind: []
+    namespace:
+      pid_host: false
+    app_waf:
+      enabled: true
+      block_patterns:
+      - '[;&|`$()]'
+      - '[\\r\\n]'
+      disabled_endpoints:
+      - /load
+      ssrf_allowed_schemes:
+      - http
+      - https
+      ssrf_allowed_hosts:
+      - example.com
+      - api.example.com
+      path_traversal_block: true
+      sqli_parameterized: false
+      ssti_sandbox: false
+      pickle_disabled: false
+  rationale: 'Iteration 3 shows 5 ACTIVE-BYPASS endpoints with 20+ active edges. Applying
+
+    ONE-CHANGE-PER-ITERATION to app_waf category. Highest-severity still-allowed
+
+    probes: /ping command injection (semicolon, &&, |, newline), /fetch SSRF
+
+    (127.0.0.1, localhost, decimal, hex-encoded IPs), /read path traversal
+
+    (dot-dot, URL-encoded variants, absolute paths), /render SSTI (canary leak,
+
+    math eval, RCE), /search SQLi (URL-encoded UNION). Prioritizing /read path
+
+    traversal by enabling path_traversal_block: true. This blocks .. sequences
+
+    and common traversal patterns in the /read ?name= parameter, severing
+
+    ACTIVE-BYPASS edges for literal dot-dot, URL-encoded dot-dot, URL-encoded
+
+    slash, and absolute path attacks. Next iteration will address /ping command
+
+    injection with stricter block_patterns (semicolon not yet blocked), then
+
+    /fetch SSRF host allowlist tightening, then /render SSTI sandbox, then
+
+    /search SQLi parameterization.'

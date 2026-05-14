@@ -1,0 +1,51 @@
+policy_intent:
+  name: hardened-iter-2
+  target:
+    image: autopatch-target:vuln
+  controls:
+    container_security:
+      run_as_non_root: false
+      allow_privilege_escalation: false
+      read_only_root_fs: false
+      no_new_privileges: true
+      privileged: false
+    capabilities:
+      drop:
+      - ALL
+      add:
+      - NET_RAW
+    seccomp:
+      profile: RuntimeDefault
+    mounts:
+      bind: []
+    namespace:
+      pid_host: false
+    app_waf:
+      enabled: true
+      block_patterns:
+      - '[;&|`$()]'
+      disabled_endpoints:
+      - /load
+  rationale: 'Iteration 1 shows 6 ACTIVE-BYPASS endpoints. Applying ONE-CHANGE-PER-ITERATION
+
+    to app_waf category. Highest-severity still-allowed probes: /ping command
+
+    injection (semicolon, &&, |, newline bypasses), /fetch SSRF (127.0.0.1,
+
+    localhost, decimal IP), /read path traversal (../, URL-encoded variants),
+
+    /search SQLi (URL-encoded UNION), /render SSTI (canary leak, math eval, RCE),
+
+    /load deserialization (base64-encoded pickle dict). Prioritizing /load first
+
+    because dyn_deser_2 shows a NEW bypass (base64 pickle dict) that is harder to
+
+    WAF-pattern than injection attacks. Disabling /load entirely via
+
+    disabled_endpoints is the most reliable defense against pickle deserialization
+
+    attacks. Enabled block_patterns for /ping command injection (shell metacharacters
+
+    [;&|`$()]). Next iteration will address /fetch SSRF with ssrf_allowed_schemes
+
+    and ssrf_allowed_hosts constraints.'

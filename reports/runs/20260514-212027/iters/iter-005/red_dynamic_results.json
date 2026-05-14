@@ -1,0 +1,17 @@
+[
+  {
+    "probe_id": "dyn_deser_1",
+    "category": "red_dynamic",
+    "severity": "high",
+    "expected": "blocked",
+    "actual": "blocked",
+    "evidence": "no match (HTTP 500)",
+    "raw_stdout": "{\"error\":\"pickle data was truncated\"}\n",
+    "raw_stderr": "",
+    "exit_code": 1,
+    "iteration": 5,
+    "duration_s": 0.029,
+    "technique": "minimal pickle opcode (STOP) to test if pickle_disabled check is bypassable via malformed base64",
+    "endpoint": "/load"
+  }
+]

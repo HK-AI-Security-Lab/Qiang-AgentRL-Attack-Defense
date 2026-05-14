@@ -101,16 +101,12 @@ def save_iteration(
     score_dict: dict[str, Any],
     prev_intent_yaml: str | None,
 ) -> None:
-    (it_dir / "policy_intent.yaml").write_text(policy_intent_yaml)
-    (it_dir / "probe_results.json").write_text(
-        json.dumps(probe_results, indent=2, ensure_ascii=False)
-    )
-    (it_dir / "score.json").write_text(
-        json.dumps(score_dict, indent=2, ensure_ascii=False)
-    )
+    (it_dir / "policy_intent.yaml").write_text(policy_intent_yaml, encoding='utf-8')
+    (it_dir / "probe_results.json").write_text(json.dumps(probe_results, indent=2, ensure_ascii=False), encoding='utf-8')
+    (it_dir / "score.json").write_text(json.dumps(score_dict, indent=2, ensure_ascii=False), encoding='utf-8')
 
     readable_diff = policy_diff(prev_intent_yaml, policy_intent_yaml)
-    (it_dir / "policy_diff.txt").write_text(readable_diff + "\n")
+    (it_dir / "policy_diff.txt").write_text(readable_diff + "\n", encoding='utf-8')
 
     if prev_intent_yaml is not None:
         udiff = "".join(
@@ -121,7 +117,7 @@ def save_iteration(
                 tofile="curr/policy_intent.yaml",
             )
         )
-        (it_dir / "diff.md").write_text("```diff\n" + udiff + "\n```\n")
+        (it_dir / "diff.md").write_text("```diff\n" + udiff + "\n```\n", encoding='utf-8')
 
 
 def finalize(run_dir: Path, latest_it_dir: Path) -> Path:

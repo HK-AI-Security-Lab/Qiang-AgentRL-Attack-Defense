@@ -1,0 +1,5 @@
+[app_waf]
+  - enabled: false
+  + enabled: true
+  - block_patterns: []
+  + block_patterns: [[;&|`$()], \$\(]

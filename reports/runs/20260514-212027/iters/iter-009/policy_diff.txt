@@ -1,0 +1,3 @@
+[app_waf]
+  - block_patterns: [[;&|`$()], [\\r\\n], \$\{.*\}, \$IFS, [;], &&, [|]]
+  + block_patterns: [[;&|`$()], [\\r\\n], \$\{.*\}, \$IFS, [;], &&, [|], \{\{.*\}\}, __class__, __mro__, __subclasses__, config, __init__, __globals__]

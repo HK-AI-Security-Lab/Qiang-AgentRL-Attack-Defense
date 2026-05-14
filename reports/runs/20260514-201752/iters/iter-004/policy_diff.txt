@@ -1,0 +1,8 @@
+[app_waf]
+  - block_patterns: [[;&|`$()], \$\(, [\n\t\r]]
+  + block_patterns: [[;&|`$()], \$\(, [\n\t\r], &&, ||]
+  + sqli_parameterized: true
+  + path_traversal_block: true
+  + ssti_sandbox: true
+  + ssrf_allowed_schemes: [http, https]
+  + ssrf_allowed_hosts: [localhost, 127.0.0.1]

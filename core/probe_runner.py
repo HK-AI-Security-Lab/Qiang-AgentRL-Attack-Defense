@@ -11,13 +11,15 @@ from typing import Any
 
 import yaml
 
+from core.runner import _resolve_bash
+
 REGISTRY_PATH = Path(__file__).resolve().parent.parent / "probes" / "registry.yaml"
 
 _EVIDENCE_RE = re.compile(r"^EVIDENCE:\s*(.+)$", re.MULTILINE)
 
 
 def load_registry() -> list[dict[str, Any]]:
-    return yaml.safe_load(REGISTRY_PATH.read_text())["probes"]
+    return yaml.safe_load(REGISTRY_PATH.read_text(encoding='utf-8'))["probes"]
 
 
 def _classify(category: str, exit_code: int) -> str:
@@ -45,7 +47,7 @@ def run_one(spec: dict[str, Any], iteration: int) -> dict[str, Any]:
     t0 = time.time()
     try:
         proc = subprocess.run(
-            ["bash", str(script)],
+            [_resolve_bash(), str(script)],
             capture_output=True,
             text=True,
             env=env,

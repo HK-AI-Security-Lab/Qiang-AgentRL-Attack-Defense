@@ -1,0 +1,47 @@
+[
+  {
+    "probe_id": "dyn_deser_1",
+    "category": "red_dynamic",
+    "severity": "high",
+    "expected": "blocked",
+    "actual": "blocked",
+    "evidence": "no match (HTTP 500)",
+    "raw_stdout": "{\"error\":\"FRAME length exceeds system's maximum of 9223372036854775807 bytes\"}\n",
+    "raw_stderr": "",
+    "exit_code": 1,
+    "iteration": 7,
+    "duration_s": 0.013,
+    "technique": "pickle opcode manipulation to bypass deserialization filter",
+    "endpoint": "/load"
+  },
+  {
+    "probe_id": "dyn_deser_2",
+    "category": "red_dynamic",
+    "severity": "high",
+    "expected": "blocked",
+    "actual": "blocked",
+    "evidence": "no match (HTTP 500)",
+    "raw_stdout": "{\"error\":\"Invalid base64-encoded string: number of data characters (33) cannot be 1 more than a multiple of 4\"}\n",
+    "raw_stderr": "",
+    "exit_code": 1,
+    "iteration": 7,
+    "duration_s": 0.022,
+    "technique": "pickle protocol 0 (text-based) to evade binary detection",
+    "endpoint": "/load"
+  },
+  {
+    "probe_id": "dyn_deser_3",
+    "category": "red_dynamic",
+    "severity": "high",
+    "expected": "blocked",
+    "actual": "blocked",
+    "evidence": "no match (HTTP 500)",
+    "raw_stdout": "{\"error\":\"FRAME length exceeds system's maximum of 9223372036854775807 bytes\"}\n",
+    "raw_stderr": "",
+    "exit_code": 1,
+    "iteration": 7,
+    "duration_s": 0.023,
+    "technique": "builtins module reference to bypass import restrictions",
+    "endpoint": "/load"
+  }
+]

@@ -51,7 +51,7 @@ def _load_waf_config() -> dict:
     if not p.exists():
         return {}
     try:
-        return json.loads(p.read_text())
+        return json.loads(p.read_text(encoding='utf-8'))
     except Exception as e:
         app.logger.warning("WAF rules load failed: %s", e)
         return {}
@@ -150,9 +150,9 @@ with app.app_context():
 # ─── Notes dir init (path traversal target) ────────────────────────────────
 
 Path(NOTES_DIR).mkdir(parents=True, exist_ok=True)
-(Path(NOTES_DIR) / "welcome.txt").write_text("Welcome to the notes app!\n")
-(Path(NOTES_DIR) / "todo.txt").write_text("1. Fix vulnerabilities\n2. Ship\n")
-Path("/tmp/path_canary.txt").write_text(CANARY["path"] + "\n")
+(Path(NOTES_DIR) / "welcome.txt").write_text("Welcome to the notes app!\n", encoding='utf-8')
+(Path(NOTES_DIR) / "todo.txt").write_text("1. Fix vulnerabilities\n2. Ship\n", encoding='utf-8')
+Path("/tmp/path_canary.txt").write_text(CANARY["path"] + "\n", encoding='utf-8')
 
 
 # ─── Endpoints ──────────────────────────────────────────────────────────────

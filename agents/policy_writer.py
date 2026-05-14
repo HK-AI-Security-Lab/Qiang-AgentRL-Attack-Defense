@@ -23,6 +23,10 @@ try:
 except ImportError:
     OpenAI = None  # type: ignore[assignment]
 
+# Lazy import to avoid a hard dep cycle (core/attack_graph imports nothing
+# heavy, so this is safe at module load).
+from core import attack_graph as _ag
+
 ROOT = Path(__file__).resolve().parent.parent
 PROMPT_PATH = ROOT / "agents" / "prompts" / "policy_writer.md"
 SCHEMA_PATH = ROOT / "schemas" / "policy_intent.schema.json"
@@ -48,7 +52,7 @@ def _extract_yaml(text: str) -> str:
 
 
 def _validate(intent: dict[str, Any]) -> list[str]:
-    schema = json.loads(SCHEMA_PATH.read_text())
+    schema = json.loads(SCHEMA_PATH.read_text(encoding='utf-8'))
     return [
         f"{'/'.join(map(str, e.path))}: {e.message}"
         for e in Draft7Validator(schema).iter_errors(intent)
@@ -59,26 +63,49 @@ def propose_next(
     current_intent_yaml: str,
     probe_results: list[dict[str, Any]],
     history: list[dict[str, Any]],
+    attack_graph: dict[str, Any] | None = None,
 ) -> tuple[str, str]:
-    """Return (new_intent_yaml, source) where source ∈ {'llm', 'heuristic'}."""
+    """Return (new_intent_yaml, source) where source ∈ {'llm', 'heuristic'}.
+
+    `attack_graph` is the per-round bipartite graph from
+    `core.attack_graph.build_round_graph(...)` (already history-merged).
+    When provided, a compact textual rendering is added to the prompt so
+    the agent can reason about specific (endpoint, technique) edges instead
+    of opaque probe ids. Self-defeating policy choices (e.g. allowlisting
+    127.0.0.1 when red_ssrf targets it) are surfaced as DO-NOT entries.
+    """
     cli = _client()
     if cli is None:
         return _heuristic_step(current_intent_yaml, probe_results), "heuristic"
 
     model = os.environ.get("BLUE_MODEL") or os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
-    system = PROMPT_PATH.read_text()
-    schema = SCHEMA_PATH.read_text()
+    system = PROMPT_PATH.read_text(encoding='utf-8')
+    schema = SCHEMA_PATH.read_text(encoding='utf-8')
 
-    user = json.dumps(
-        {
-            "current_policy_intent_yaml": current_intent_yaml,
-            "probe_results": probe_results,
-            "history_brief": history[-6:],
-            "schema": json.loads(schema),
-            "instruction": "Return only the next policy_intent.yaml as a fenced YAML block.",
-        },
-        ensure_ascii=False,
-    )
+    # Build attack-graph context for the prompt.
+    graph_block = ""
+    self_check: list[str] = []
+    if attack_graph is not None:
+        graph_block = _ag.compact_for_prompt(attack_graph, max_edges=40)
+        try:
+            current_pi = yaml.safe_load(current_intent_yaml).get("policy_intent", {})
+            self_check = _ag.policy_self_check(current_pi)
+        except Exception:
+            self_check = []
+
+    user_payload: dict[str, Any] = {
+        "current_policy_intent_yaml": current_intent_yaml,
+        "probe_results": probe_results,
+        "history_brief": history[-6:],
+        "schema": json.loads(schema),
+        "instruction": "Return only the next policy_intent.yaml as a fenced YAML block.",
+    }
+    if graph_block:
+        user_payload["attack_graph"] = graph_block
+    if self_check:
+        user_payload["self_check_warnings"] = self_check
+
+    user = json.dumps(user_payload, ensure_ascii=False)
 
     try:
         resp = cli.chat.completions.create(

@@ -1,0 +1,62 @@
+policy_intent:
+  name: hardened-iter-3
+  target:
+    image: autopatch-target:vuln
+  controls:
+    container_security:
+      run_as_non_root: false
+      allow_privilege_escalation: false
+      read_only_root_fs: false
+      no_new_privileges: true
+      privileged: false
+    capabilities:
+      drop:
+      - ALL
+      add:
+      - NET_RAW
+    seccomp:
+      profile: RuntimeDefault
+    mounts:
+      bind: []
+    namespace:
+      pid_host: false
+    app_waf:
+      enabled: true
+      block_patterns:
+      - '[;&|`$()]'
+      - '[\r\n]'
+      disabled_endpoints:
+      - /load
+      ssrf_allowed_schemes:
+      - http
+      - https
+      ssrf_allowed_hosts:
+      - example.com
+      - api.example.com
+      path_traversal_block: false
+      sqli_parameterized: false
+      ssti_sandbox: false
+      pickle_disabled: false
+  rationale: 'Iteration 2 shows 5 ACTIVE-BYPASS endpoints. Applying ONE-CHANGE-PER-ITERATION
+
+    to app_waf category. Highest-severity still-allowed probes: /ping command
+
+    injection (semicolon, &&, |, newline bypasses), /fetch SSRF (127.0.0.1,
+
+    localhost, decimal IP 2130706433), /render SSTI (canary leak via direct
+
+    template variable). Prioritizing /fetch SSRF with ssrf_allowed_schemes and
+
+    ssrf_allowed_hosts constraints. Red probes dyn_ssrf_1 show decimal IP bypass
+
+    (2130706433 = 127.0.0.1 in decimal). Restricting /fetch to http/https schemes
+
+    only and allowlisting safe external hosts (example.com, api.example.com)
+
+    blocks loopback, localhost, and decimal IP variants. Also strengthening /ping
+
+    block_patterns to include raw newline/carriage-return [\r\n] to catch literal
+
+    newline injection (dyn_cmd_2 shows POST body newline bypass). Next iteration
+
+    will address /render SSTI sandbox and /read path traversal.'

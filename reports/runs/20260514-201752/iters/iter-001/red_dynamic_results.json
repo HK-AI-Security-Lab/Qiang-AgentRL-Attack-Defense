@@ -1,0 +1,62 @@
+[
+  {
+    "probe_id": "dyn_deser_1",
+    "category": "red_dynamic",
+    "severity": "high",
+    "expected": "blocked",
+    "actual": "blocked",
+    "evidence": "no match (HTTP 500)",
+    "raw_stdout": "{\"error\":\"pickle data was truncated\"}\n",
+    "raw_stderr": "",
+    "exit_code": 1,
+    "iteration": 1,
+    "duration_s": 0.016,
+    "technique": "pickle opcode manipulation to bypass deserialization filter",
+    "endpoint": "/load"
+  },
+  {
+    "probe_id": "dyn_deser_2",
+    "category": "red_dynamic",
+    "severity": "high",
+    "expected": "blocked",
+    "actual": "allowed",
+    "evidence": "BYPASS via base64-encoded pickle dict with canary key-value pair; canary=CANARY_DESER_9a1f7b",
+    "raw_stdout": "{\"canary\":\"CANARY_DESER_9a1f7b\",\"type\":\"dict\",\"value\":\"{'canary': 'CANARY_DESER_9a1f7b'}\"}\n",
+    "raw_stderr": "",
+    "exit_code": 0,
+    "iteration": 1,
+    "duration_s": 0.006,
+    "technique": "base64-encoded pickle dict with canary key-value pair",
+    "endpoint": "/load"
+  },
+  {
+    "probe_id": "dyn_deser_3",
+    "category": "red_dynamic",
+    "severity": "high",
+    "expected": "blocked",
+    "actual": "blocked",
+    "evidence": "no match (HTTP 500)",
+    "raw_stdout": "{\"error\":\"pickle data was truncated\"}\n",
+    "raw_stderr": "",
+    "exit_code": 1,
+    "iteration": 1,
+    "duration_s": 0.018,
+    "technique": "pickle protocol 2 with embedded canary string in dict",
+    "endpoint": "/load"
+  },
+  {
+    "probe_id": "dyn_deser_4",
+    "category": "red_dynamic",
+    "severity": "high",
+    "expected": "blocked",
+    "actual": "blocked",
+    "evidence": "no match (HTTP 500)",
+    "raw_stdout": "{\"error\":\"pickle data was truncated\"}\n",
+    "raw_stderr": "",
+    "exit_code": 1,
+    "iteration": 1,
+    "duration_s": 0.003,
+    "technique": "minimal pickle payload with canary string as top-level object",
+    "endpoint": "/load"
+  }
+]

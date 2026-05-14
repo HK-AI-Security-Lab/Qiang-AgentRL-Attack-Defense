@@ -1,0 +1,35 @@
+policy_intent:
+  name: hardened-iter-2
+  target:
+    image: autopatch-target:vuln
+  controls:
+    container_security:
+      run_as_non_root: false
+      allow_privilege_escalation: false
+      read_only_root_fs: false
+      no_new_privileges: true
+      privileged: false
+    capabilities:
+      drop:
+      - ALL
+      add:
+      - NET_RAW
+    seccomp:
+      profile: RuntimeDefault
+    mounts:
+      bind: []
+    namespace:
+      pid_host: false
+    app_waf:
+      enabled: true
+      block_patterns:
+      - '[;&|`$()]'
+      - \$\(
+      - '[\n\t\r]'
+  rationale: probe_cmd_injection and red_cmd_injection still allowed. Analysis shows
+    semicolon (;), newline, and tab bypasses in dyn_cmd_2/dyn_cmd_3. Current block_patterns
+    only covers [;&|`$()], missing whitespace/newline IFS separators. Added regex
+    [\n\t\r] to block newline, tab, carriage return characters used in command injection
+    payloads. This is the single highest-impact fix for the most severe still-allowed
+    attack surface (command injection). Container-level defences already in place;
+    focusing on app_waf injection patterns per one-change-per-iteration rule.

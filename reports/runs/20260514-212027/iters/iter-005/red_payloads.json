@@ -1,0 +1,12 @@
+[
+  {
+    "id": "dyn_deser_1",
+    "endpoint": "/load",
+    "method": "POST",
+    "params": {
+      "data": "gASVGQAAAAAAAHg="
+    },
+    "detect_pattern": "CANARY_DESER_9a1f7b",
+    "technique": "minimal pickle opcode (STOP) to test if pickle_disabled check is bypassable via malformed base64"
+  }
+]

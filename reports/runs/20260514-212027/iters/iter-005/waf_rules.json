@@ -1,0 +1,21 @@
+{
+  "block_patterns": [
+    "[;&|`$()]",
+    "[\\\\r\\\\n]"
+  ],
+  "disabled_endpoints": [
+    "/load"
+  ],
+  "ssrf_allowed_schemes": [
+    "http",
+    "https"
+  ],
+  "ssrf_allowed_hosts": [
+    "example.com",
+    "api.example.com"
+  ],
+  "path_traversal_block": true,
+  "sqli_parameterized": false,
+  "ssti_sandbox": true,
+  "pickle_disabled": false
+}

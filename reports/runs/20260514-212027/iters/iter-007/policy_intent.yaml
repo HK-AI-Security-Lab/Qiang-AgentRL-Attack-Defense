@@ -1,0 +1,62 @@
+policy_intent:
+  name: hardened-iter-7
+  target:
+    image: autopatch-target:vuln
+  controls:
+    container_security:
+      run_as_non_root: false
+      allow_privilege_escalation: false
+      read_only_root_fs: false
+      no_new_privileges: true
+      privileged: false
+    capabilities:
+      drop:
+      - ALL
+      add:
+      - NET_RAW
+    seccomp:
+      profile: RuntimeDefault
+    mounts:
+      bind: []
+    namespace:
+      pid_host: false
+    app_waf:
+      enabled: true
+      block_patterns:
+      - '[;&|`$()]'
+      - '[\\r\\n]'
+      - \$\{.*\}
+      - \$IFS
+      disabled_endpoints:
+      - /load
+      ssrf_allowed_schemes:
+      - http
+      - https
+      ssrf_allowed_hosts:
+      - example.com
+      - api.example.com
+      path_traversal_block: true
+      sqli_parameterized: true
+      ssti_sandbox: true
+      pickle_disabled: false
+  rationale: 'Iteration 6 shows 5 ACTIVE-BYPASS endpoints. Highest-severity still-allowed
+
+    probes: /ping command injection via $IFS variable substitution (NEW bypass),
+
+    /fetch SSRF via 127.0.0.1/localhost/decimal IP (3 ACTIVE-BYPASS edges),
+
+    /render SSTI via __class__ chain sandbox escape, /read path traversal via
+
+    dot-dot variants, /search SQLi via URL-encoded UNION. Applying ONE-CHANGE-
+
+    PER-ITERATION to app_waf category. Prioritizing /ping $IFS bypass by adding
+
+    two new block_patterns: ''\$\{.*\}'' to catch variable expansion syntax and
+
+    ''\$IFS'' to block the IFS substitution technique directly. These patterns
+
+    complement existing ''[;&|`$()]'' to close the $IFS bypass vector while
+
+    maintaining legitimate ping functionality. Next iteration will tighten SSRF
+
+    allowlist to exclude 127.0.0.1, localhost, and decimal IP encodings.'

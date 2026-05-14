@@ -30,7 +30,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from agents import policy_writer, red_agent, reporter
-from core import judge, policy_compiler, probe_runner, red_probe_runner, runner, state_store, rationale_auditor
+from core import attack_graph, judge, policy_compiler, probe_runner, red_probe_runner, runner, state_store, rationale_auditor
 
 ROOT = Path(__file__).resolve().parent.parent
 BASELINE_POLICY = ROOT / "policies" / "baseline" / "policy_intent.yaml"
@@ -42,7 +42,7 @@ console = Console()
 def _load_waf(it_dir: Path) -> dict:
     p = it_dir / "waf_rules.json"
     if p.exists():
-        return json.loads(p.read_text())
+        return json.loads(p.read_text(encoding='utf-8'))
     return {}
 
 
@@ -92,7 +92,7 @@ def main() -> int:
     run_dir = state_store.new_run_dir()
     console.print(f"run_dir: [yellow]{run_dir}[/yellow]")
 
-    current_yaml = BASELINE_POLICY.read_text()
+    current_yaml = BASELINE_POLICY.read_text(encoding='utf-8')
     prev_yaml: str | None = None
     history: list[dict] = []
     game_log: list[dict] = []
@@ -123,14 +123,20 @@ def main() -> int:
             blue_rationale = "Baseline policy (no changes yet)"
             blue_source = "baseline"
         else:
-            new_yaml, blue_source = policy_writer.propose_next(current_yaml, all_results, history)
+            # Load the most recent attack_graph (from previous round) to feed
+            # into policy_writer so it can reason about specific edges.
+            prev_graphs = attack_graph.load_run_graphs(run_dir)
+            prev_graph = prev_graphs[-1] if prev_graphs else None
+            new_yaml, blue_source = policy_writer.propose_next(
+                current_yaml, all_results, history, attack_graph=prev_graph
+            )
             pi_new = yaml.safe_load(new_yaml)
             pi_old = yaml.safe_load(current_yaml)
             blue_rationale = pi_new.get("policy_intent", {}).get("rationale", "")
             current_yaml = new_yaml
 
         intent_path = it_dir / "policy_intent.yaml"
-        intent_path.write_text(current_yaml)
+        intent_path.write_text(current_yaml, encoding='utf-8')
 
         console.print(Panel(
             f"[blue]Source: {blue_source}[/blue]\n{blue_rationale[:300]}",
@@ -149,14 +155,14 @@ def main() -> int:
             policy_compiler.compile_intent(intent_path, it_dir)
         except Exception as e:
             console.print(f"[red]compile failed:[/red] {e}")
-            current_yaml = BASELINE_POLICY.read_text()
+            current_yaml = BASELINE_POLICY.read_text(encoding='utf-8')
             continue
 
         try:
             runner.up(it_dir / "docker_run.sh")
         except Exception as e:
             console.print(f"[red]docker up failed:[/red] {e}")
-            current_yaml = prev_yaml if prev_yaml else BASELINE_POLICY.read_text()
+            current_yaml = prev_yaml if prev_yaml else BASELINE_POLICY.read_text(encoding='utf-8')
             continue
 
         if not runner.wait_ready(timeout=20.0):
@@ -233,12 +239,15 @@ def main() -> int:
         # ── Persist ────────────────────────────────────────────
         state_store.save_iteration(it_dir, current_yaml, all_results, score_dict, prev_yaml)
         if payloads:
-            (it_dir / "red_payloads.json").write_text(
-                json.dumps(payloads, indent=2, ensure_ascii=False)
-            )
-            (it_dir / "red_dynamic_results.json").write_text(
-                json.dumps(dyn_results, indent=2, ensure_ascii=False)
-            )
+            (it_dir / "red_payloads.json").write_text(json.dumps(payloads, indent=2, ensure_ascii=False), encoding='utf-8')
+            (it_dir / "red_dynamic_results.json").write_text(json.dumps(dyn_results, indent=2, ensure_ascii=False), encoding='utf-8')
+
+        # ── Attack graph (per-round) ──────────────────────────────────
+        prior_graphs = attack_graph.load_run_graphs(run_dir)
+        round_graph = attack_graph.build_round_graph(rnd, all_results, dyn_results)
+        round_graph = attack_graph.merge_history(round_graph, prior_graphs)
+        attack_graph.write_graph(it_dir, round_graph)
+        round_entry["attack_graph_stats"] = round_graph["stats"]
 
         failing = [
             r["probe_id"] for r in all_results
@@ -301,12 +310,10 @@ def main() -> int:
         prev_yaml = current_yaml
 
     # ── Full diff summary ─────────────────────────────────────
-    baseline_yaml = BASELINE_POLICY.read_text()
+    baseline_yaml = BASELINE_POLICY.read_text(encoding='utf-8')
     full_diff = state_store.policy_diff(baseline_yaml, current_yaml)
-    (run_dir / "full_policy_diff.txt").write_text(
-        f"=== Full Policy Diff: Baseline → Final (Round {len(game_log)-1}) ===\n\n"
-        + full_diff + "\n"
-    )
+    (run_dir / "full_policy_diff.txt").write_text(f"=== Full Policy Diff: Baseline → Final (Round {len(game_log)-1}) ===\n\n"
+    + full_diff + "\n", encoding='utf-8')
     console.print(Panel(
         f"[white]{full_diff}[/white]",
         title="[bold cyan]Full Policy Evolution: Baseline → Final[/bold cyan]",
@@ -327,7 +334,7 @@ def main() -> int:
         "red_model": red_m,
     }
     game_log_path = run_dir / "game_log.json"
-    game_log_path.write_text(json.dumps(game_log_meta, indent=2, ensure_ascii=False))
+    game_log_path.write_text(json.dumps(game_log_meta, indent=2, ensure_ascii=False), encoding='utf-8')
     console.print(f"game_log: [bold]{game_log_path}[/bold]")
 
     outcome_label = {"blue_win": "BLUE WIN", "red_win": "RED WIN", "draw": "DRAW"}[outcome]
@@ -345,6 +352,11 @@ def main() -> int:
     from core.visualizer import generate_html
     html_path = generate_html(run_dir, game_log_meta)
     console.print(f"visualization: [bold cyan]{html_path}[/bold cyan]")
+
+    from core import attack_graph_html
+    ag_html = attack_graph_html.generate_html(run_dir)
+    if ag_html is not None:
+        console.print(f"attack graph:  [bold cyan]{ag_html}[/bold cyan]")
 
     return 0
 

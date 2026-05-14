@@ -1,0 +1,5 @@
+[app_waf]
+  - block_patterns: [[;&|`$()], [\r\n]]
+  + block_patterns: [[;&|`$()], [\\r\\n]]
+  - path_traversal_block: false
+  + path_traversal_block: true

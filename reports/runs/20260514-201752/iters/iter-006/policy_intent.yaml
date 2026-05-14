@@ -1,0 +1,59 @@
+policy_intent:
+  name: hardened-iter-5
+  target:
+    image: autopatch-target:vuln
+  controls:
+    container_security:
+      run_as_non_root: false
+      allow_privilege_escalation: false
+      read_only_root_fs: false
+      no_new_privileges: true
+      privileged: false
+    capabilities:
+      drop:
+      - ALL
+      add:
+      - NET_RAW
+    seccomp:
+      profile: RuntimeDefault
+    mounts:
+      bind: []
+    namespace:
+      pid_host: false
+    app_waf:
+      enabled: true
+      block_patterns:
+      - '[;&|`$()]'
+      - \$\(
+      - '[\n\t\r]'
+      - '&&'
+      - '||'
+      - ;
+      - \|
+      sqli_parameterized: true
+      path_traversal_block: true
+      ssti_sandbox: true
+      ssrf_allowed_schemes:
+      - http
+      - https
+      ssrf_allowed_hosts:
+      - localhost
+      - 127.0.0.1
+  rationale: 'Iteration 5: probe_cmd_injection and red_cmd_injection still allowed.
+
+
+    Root cause: red_cmd_injection PAYLOAD[1] and PAYLOAD[2] bypass via bare pipe (|).
+
+    Current block_patterns include && and || but NOT standalone pipe character.
+
+
+    Fix: Added explicit ''\|'' pattern to block_patterns. This closes the pipe
+
+    command separator bypass (127.0.0.1 | id, 127.0.0.1 && id) while maintaining
+
+    all prior defences (semicolon, &&, ||, $(), backticks, shell metacharacters).
+
+
+    One-change rule: Only modifying app_waf.block_patterns. All other controls
+
+    remain unchanged from iter-4.'
