@@ -182,31 +182,72 @@ reports/runs/20260514-212027/
 
 `.\run.ps1 graph` 打开。这是最直观的入口。
 
+**这是一张 5 层 kill chain 图**，不是简单的端点状态板。每轮渲染一帧，拖滑块看 agent 改 policy 怎么逐条切断攻击路径。
+
+### 5 层结构（垂直从上到下）
+
+```
+L1 Initial Access        6 个端点（前门）：/ping /fetch /read /search /render /load
+        │ shell injection / SSRF / traversal / SQLi / SSTI / pickle.loads
+        ▼
+L2 Capability            拿到的能力：shell_exec / http_egress / file_read / db_read
+                                     / python_eval / pickle_rce
+        │ subprocess / template evals / open() / DB read
+        ▼
+L3 Container Compromise  容器内动作：read_shadow / read_kallsyms / create_userns
+                                     / read_host / docker_sock / metadata_ssrf
+        │ chroot / docker API / kernel ROP / mount via SYS_ADMIN
+        ▼
+L4 Container Escape      跨出容器：chroot_host / docker_sock_rce / kernel_exploit
+                                  / sysadmin_escape
+        │ host shell
+        ▼
+L5 Host                  host_owned（终态）
+```
+
 ### 节点
 
-- **左列 6 个端点节点**：
-  - 红色填充 = 这一轮被红方打穿了（`compromised`）
-  - 绿色填充 = 这一轮守住了（`defended`）
-- **右列 N 个 technique 节点**：红方用过的所有攻击手法（"semicolon injection"、"URL-encoded dot-dot"、"decimal IP loopback"、"__class__ chain" 等）
+每个节点是一张卡片，颜色编码：
+
+- **红色填充** = 这一轮攻击者**已经能到达这个节点**（compromised）
+- **灰色填充** = 这一轮**到不了**（safe）
+
+reachability 从 L1 自动传播：L1 永远红（任何人都能戳前门），下面的层只有当存在一条状态为 bypassed/reachable 的入边、且源节点也红，才会变红。
 
 ### 边
 
-每条弧线代表"红方用 technique X 攻击 endpoint Y"，颜色编码：
+每条弧线是"红方从 source 到 target 的一种攻击动作"，颜色：
 
 | 边样式 | 含义 |
 |---|---|
-| **红实线** `bypassed` | 这一轮，X 成功打穿了 Y。防御失败，agent 必须补 |
-| **灰虚线** `blocked` | 这一轮，X 被拦下了。防御有效 |
-| **绿色描边** `severed` | X 在更早的轮次曾打穿 Y，但**这轮被堵住了**。agent 修复成功的证据 |
-| **黄色外发光** `novel` | X 这轮第一次出现（一般是红方动态 payload 的新招） |
+| **红实线** `bypassed` | 这一轮被 probe **实测确认**打穿了（最高优先级） |
+| **黄虚线** `reachable` | policy 没切，源节点又红，是一条**没被探针测过但理论上通的路** |
+| **绿实线** `severed` | policy 切断了这条边（agent 修复成果） |
+| **灰虚线** `blocked` | 这一轮被 probe **实测确认**拦下了 |
+| **极淡灰** `unreachable` | 源节点都到不了，这条边是死路 |
+
+附加光晕：
+- **红外发光** `regressed` —— agent 之前切过这条边，这一轮又破了（必须查为什么）
+- **绿外发光** `novel-severance` —— agent **这一轮第一次**切断这条边（成果展示）
 
 ### 怎么用
 
-- **拖动顶部滑块从 R0 → RN**，看红→绿的演化（理想情况）
-- **看红实线在哪**：agent 还没解决的攻击路径
-- **看绿描边的边**：agent 已经修好的路径（成果展示）
-- **看黄发光的边**：红方在创新（dynamic payload 新出的招）
-- **右侧栏**：每轮的 score、stats、agent 自己的 rationale、edges 完整列表
+- 看 **L5 节点（host_owned）** 是不是红的：终极 KPI。一旦它变灰，这一轮 agent 就**已经把"被打穿到宿主"的风险消除**了。
+- 看右侧栏 **Live Kill Paths**：列出从 L1 到 host_owned 的所有活跃路径。0 条 = host 安全。
+- 看哪条边是 **绿色** 但旁边的兄弟边还红：意味着 agent 修了部分但没修完
+- 拖滑块从 R0 → RN：看红线一条条变绿，看 L5 从红变灰
+
+### 真实 demo 数据例子
+
+在 `reports/runs/20260514-212027` 这个 run 里：
+
+```
+iter-0  host_owned=YES  bypassed=6  severed=0  kill_paths=1   ← baseline 错配
+iter-1  host_owned=NO   bypassed=5  severed=3  kill_paths=0   ← agent 一轮搞定 escape
+iter-2~11  host_owned=NO  ...                                  ← 在补 L1-L2 应用层洞
+```
+
+**iter-1 一轮就把"escape 到 host"消除了**：agent 删 mounts / drop caps / 切 seccomp，三个一起改，三条 L3→L4 的边同时变绿（newly-severed）。后面 11 轮在收应用层的尾，但 host 一直没再红。这是 kill chain 视角下 demo 真正的成绩单。
 
 ## 重点 2：score 轨迹
 
@@ -257,16 +298,20 @@ red_deserialization → blocked  ✓
 
 | 指标 | 不喂图（旧） | 喂图（新） |
 |---|---|---|
-| iter-0 score | -740 | -740 |
-| 最佳 score | +180 (iter-5) | -100 (iter-11) |
+| iter-0 host_owned | YES | YES |
+| iter-1 host_owned | **NO** | **NO** |
+| 12 轮 host_owned 是否再 YES | 否 | 否 |
+| 平均每轮 severed_edges | ≈3-4 | ≈3-4 |
 | 最终 score | -660 | **-100** |
 | ssrf_allowed_hosts 自爆 | 是（127.0.0.1 + localhost） | **否，全程坚持外部域名** |
-| agent 引用图概念 | 没有 | **是**（ACTIVE-BYPASS / SEVERED / self-defeating） |
-| compromised endpoints（最终） | 5/6 | 5/6（同） |
+| agent 引用图概念 | 没有 | **是**（kill_paths / severed / self-defeating） |
+| compromised L2 capabilities（最终） | 5/6 | 5/6（同） |
 
-最重要的不是 score 数字，而是 **agent 的决策质量**：上一次跑里 agent 把 SSRF 探针测试目标加进白名单（自爆），新版本 agent 看到 self-check warning 后明确拒绝并解释了原因。
+最重要的不是 score，而是 **agent 的决策质量 + kill chain 直观性**：
+- iter-0 → iter-1 这一步 host_owned 从 YES → NO，是这个 demo 真正想展示的事，旧的二分图把这点完全淹没了
+- 上一次跑里 agent 把 SSRF 探针测试目标加进白名单（自爆），新版本 agent 看到 self-check warning 后明确拒绝并解释了原因
 
-> 上一次跑（不喂图）保存在 `reports/runs/20260514-201752/`，新版本（喂图）保存在 `reports/runs/20260514-212027/`。可以直接 `.\run.ps1 graph` 看新版本，或者 `code reports\runs\20260514-201752\final\policy_intent.yaml` 看旧版本里 agent 自爆的那一刻。
+> 旧版本（不喂图）保存在 `reports/runs/20260514-201752/`，新版本（喂图）保存在 `reports/runs/20260514-212027/`。两份都 backfill 了新 schema 的 attack_graph.json + html，可以直接 `code reports\runs\20260514-212027\attack_graph.html` 打开（或用 `.\run.ps1 graph` 看最近一次）。
 
 ---
 

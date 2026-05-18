@@ -244,7 +244,7 @@ def main() -> int:
 
         # ── Attack graph (per-round) ──────────────────────────────────
         prior_graphs = attack_graph.load_run_graphs(run_dir)
-        round_graph = attack_graph.build_round_graph(rnd, all_results, dyn_results)
+        round_graph = attack_graph.build_round_graph(rnd, all_results, dyn_results, current_yaml)
         round_graph = attack_graph.merge_history(round_graph, prior_graphs)
         attack_graph.write_graph(it_dir, round_graph)
         round_entry["attack_graph_stats"] = round_graph["stats"]

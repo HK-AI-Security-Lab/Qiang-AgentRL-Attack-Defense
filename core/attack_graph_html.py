@@ -1,19 +1,10 @@
-"""Render a per-run attack-graph HTML from iter-NNN/attack_graph.json files.
+"""Render a 5-layer kill-chain HTML from per-iter attack_graph.json files.
 
-Output: <run_dir>/attack_graph.html — single self-contained file, no external
-deps, openable offline. Layout is a vertical bipartite graph:
+Layout: nodes are stacked in 5 horizontal bands (L1 top, L5 bottom).
+Edges are SVG bezier curves coloured by status. A round slider lets you
+scrub between iterations and see which edges/nodes change colour.
 
-    [ endpoints (left) ]  ====edges====  [ techniques (right) ]
-
-A round slider/buttons at the top swaps which round is shown. Edges are
-coloured by status:
-
-    bypassed (red)          this round, attack got through
-    blocked  (gray)         this round, defence held
-    severed  (green halo)   defence held this round but had been bypassed before
-    novel    (yellow halo)  this technique appeared for the first time this round
-
-Sidebar lists score, stats, and the agent's rationale for that round.
+Single self-contained HTML file, no external CDN dependency.
 """
 
 from __future__ import annotations
@@ -44,33 +35,35 @@ def _read_json(p: Path) -> Any:
         return None
 
 
+def _extract_rationale(policy_yaml: str) -> str:
+    marker = "rationale:"
+    idx = policy_yaml.find(marker)
+    if idx < 0:
+        return ""
+    rationale = policy_yaml[idx + len(marker):].strip()
+    if rationale.startswith(("|", ">")):
+        rationale = rationale.split("\n", 1)[1] if "\n" in rationale else ""
+    return rationale.strip().strip("'\"")[:1500]
+
+
 def _collect_round_payloads(run_dir: Path) -> list[dict[str, Any]]:
-    """One blob per round with everything the HTML needs."""
     rounds: list[dict[str, Any]] = []
     iters = sorted((run_dir / "iters").glob("iter-*"))
     for it in iters:
         graph = _read_json(it / "attack_graph.json")
-        if graph is None:
+        if graph is None or graph.get("schema_version") != "killchain.v1":
             continue
         score = _read_json(it / "score.json") or {}
         policy_yaml = _read_text(it / "policy_intent.yaml") or ""
-        # Pull rationale out of YAML cheaply (avoid yaml dep here).
-        rationale = ""
-        marker = "rationale:"
-        idx = policy_yaml.find(marker)
-        if idx >= 0:
-            rationale = policy_yaml[idx + len(marker):].strip()
-            # strip leading | or > and any wrapping quotes
-            if rationale.startswith(("|", ">")):
-                rationale = rationale.split("\n", 1)[1] if "\n" in rationale else ""
-            rationale = rationale.strip().strip("'\"")
         rounds.append({
             "iteration": graph["iteration"],
+            "nodes": graph["nodes"],
             "edges": graph["edges"],
-            "endpoint_status": graph["endpoint_status"],
+            "node_reachable": graph["node_reachable"],
             "stats": graph["stats"],
+            "kill_paths": graph.get("kill_paths", []),
             "score": score.get("total"),
-            "rationale": rationale[:1200],
+            "rationale": _extract_rationale(policy_yaml),
         })
     return rounds
 
@@ -79,7 +72,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>AutoPatch-RL · Attack Graph</title>
+<title>AutoPatch-RL Kill Chain</title>
 <style>
   :root {
     --bg: #0d1117; --card: #161b22; --card2: #1c2128; --border: #30363d;
@@ -104,11 +97,10 @@ _TEMPLATE = r"""<!DOCTYPE html>
   }
   header h1 { margin: 0; font-size: 18px; font-weight: 600; }
   header .meta { color: var(--text2); font-size: 13px; font-family: var(--font); }
-
   .nav {
     padding: 12px 22px; background: var(--card2);
     border-bottom: 1px solid var(--border);
-    display: flex; gap: 12px; align-items: center;
+    display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
   }
   .nav button {
     background: var(--card); color: var(--text); border: 1px solid var(--border);
@@ -117,28 +109,28 @@ _TEMPLATE = r"""<!DOCTYPE html>
   .nav button:hover { background: var(--border); }
   .nav button:disabled { opacity: 0.4; cursor: not-allowed; }
   .round-label { font-family: var(--font); color: var(--text); min-width: 110px; }
-  .slider-wrap { flex: 1; display: flex; align-items: center; gap: 12px; }
+  .slider-wrap { flex: 1; display: flex; align-items: center; gap: 12px; min-width: 200px; }
   input[type=range] { flex: 1; }
-  .legend { display: flex; gap: 14px; font-size: 12px; color: var(--text2); }
-  .legend .chip {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 3px 8px; border-radius: 12px;
+  .legend { display: flex; gap: 14px; font-size: 12px; color: var(--text2); flex-wrap: wrap; }
+  .legend .chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 12px; }
+  .legend .chip span.swatch {
+    width: 18px; height: 4px; border-radius: 2px; display: inline-block;
   }
-  .legend .chip span.dot {
-    width: 10px; height: 10px; border-radius: 50%; display: inline-block;
-  }
-
   main {
     flex: 1; display: grid; grid-template-columns: minmax(0,1fr) 360px;
     gap: 16px; padding: 16px 22px;
   }
   .graph {
     background: var(--card); border: 1px solid var(--border);
-    border-radius: 12px; padding: 16px; min-height: 600px;
+    border-radius: 12px; padding: 16px; min-height: 720px;
     position: relative; overflow: auto;
   }
-  .graph svg { width: 100%; height: 100%; min-height: 560px; }
-
+  .graph svg { width: 100%; height: 100%; min-height: 700px; }
+  .layer-label {
+    position: absolute; left: 22px; color: var(--text3);
+    font-family: var(--font); font-size: 11px; pointer-events: none;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
   .sidebar {
     background: var(--card); border: 1px solid var(--border);
     border-radius: 12px; padding: 16px;
@@ -147,8 +139,8 @@ _TEMPLATE = r"""<!DOCTYPE html>
   }
   .stat-row { display: grid; grid-template-columns: 1fr auto; gap: 4px; font-size: 13px; }
   .stat-row .v { font-family: var(--font); }
-  .score-positive { color: var(--green); }
-  .score-negative { color: var(--red); }
+  .stat-row .v.bad  { color: var(--red); }
+  .stat-row .v.good { color: var(--green); }
   h2 {
     font-size: 13px; color: var(--text2); margin: 0 0 6px 0;
     text-transform: uppercase; letter-spacing: 0.5px;
@@ -156,43 +148,44 @@ _TEMPLATE = r"""<!DOCTYPE html>
   .rationale {
     background: var(--card2); padding: 10px 12px; border-radius: 8px;
     font-size: 12px; line-height: 1.55; white-space: pre-wrap;
-    border: 1px solid var(--border); max-height: 220px; overflow-y: auto;
+    border: 1px solid var(--border); max-height: 200px; overflow-y: auto;
   }
-  .edge-list {
-    display: flex; flex-direction: column; gap: 4px;
-    max-height: 360px; overflow-y: auto;
+  .path-list { display: flex; flex-direction: column; gap: 6px; }
+  .path {
+    font-family: var(--font); font-size: 11px;
+    padding: 6px 10px; border-radius: 6px;
+    background: var(--red-bg); color: var(--text); border-left: 3px solid var(--red);
+    word-break: break-word;
   }
+  .edges-section h2 { margin-top: 8px; }
+  .edge-list { display: flex; flex-direction: column; gap: 4px; max-height: 260px; overflow-y: auto; }
   .edge-item {
     font-size: 11px; font-family: var(--font);
     padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border);
     background: var(--card2);
   }
-  .edge-item.bypassed { color: var(--red); border-left: 3px solid var(--red); }
-  .edge-item.blocked  { color: var(--text2); }
-  .edge-item.severed  { color: var(--green); border-left: 3px solid var(--green); }
-  .edge-item.novel    { box-shadow: inset 0 0 0 1px var(--yellow); }
+  .edge-item.bypassed   { color: var(--red); border-left: 3px solid var(--red); }
+  .edge-item.reachable  { color: var(--yellow); border-left: 3px solid var(--yellow); }
+  .edge-item.severed    { color: var(--green); border-left: 3px solid var(--green); }
+  .edge-item.blocked    { color: var(--text2); }
 
   /* SVG */
-  .node-ep rect {
-    fill: var(--card2); stroke: var(--border); stroke-width: 2;
-    rx: 8; ry: 8; transition: all 0.2s;
-  }
-  .node-ep.compromised rect { fill: var(--red-bg); stroke: var(--red); }
-  .node-ep.defended rect    { fill: var(--green-bg); stroke: var(--green); }
-  .node-ep text { fill: var(--text); font-family: var(--font); font-size: 13px; }
-  .node-ep .vuln { fill: var(--text2); font-size: 11px; }
+  .node-box rect { rx: 8; ry: 8; stroke-width: 2; transition: all 0.2s; }
+  .node-box.compromised rect { fill: var(--red-bg); stroke: var(--red); }
+  .node-box.safe         rect { fill: var(--card2);  stroke: var(--border); }
+  .node-box text { fill: var(--text); font-family: var(--font); font-size: 12px; }
+  .node-box .desc { fill: var(--text2); font-size: 10px; }
 
-  .node-tech rect {
-    fill: var(--card2); stroke: var(--border); stroke-width: 1; rx: 6; ry: 6;
-  }
-  .node-tech text { fill: var(--text); font-family: var(--font); font-size: 11px; }
-
-  .edge { fill: none; stroke-width: 1.5; opacity: 0.85; transition: opacity 0.2s; }
-  .edge.bypassed { stroke: var(--red); stroke-width: 2.5; }
-  .edge.blocked  { stroke: var(--gray); stroke-dasharray: 4 4; opacity: 0.4; }
-  .edge.severed  { stroke: var(--green); stroke-width: 2; opacity: 0.7; }
-  .edge.novel    { filter: drop-shadow(0 0 3px var(--yellow)); }
-  .edge:hover { opacity: 1; stroke-width: 3.5; }
+  .edge { fill: none; stroke-width: 1.6; opacity: 0.85; transition: opacity 0.2s; }
+  .edge.bypassed   { stroke: var(--red);    stroke-width: 2.6; }
+  .edge.reachable  { stroke: var(--yellow); stroke-width: 2; stroke-dasharray: 6 3; }
+  .edge.severed    { stroke: var(--green);  stroke-width: 2; }
+  .edge.blocked    { stroke: var(--gray);   stroke-width: 1; stroke-dasharray: 3 4; opacity: 0.35; }
+  .edge.unreachable{ stroke: var(--gray);   stroke-width: 1; opacity: 0.18; }
+  .edge.regressed       { filter: drop-shadow(0 0 4px var(--red));    }
+  .edge.novel-severance { filter: drop-shadow(0 0 4px var(--green));  }
+  .edge:hover { opacity: 1; stroke-width: 4; }
+  .layer-divider { stroke: var(--border); stroke-dasharray: 2 4; }
 
   footer { padding: 12px 22px; color: var(--text3); font-size: 11px;
            text-align: center; border-top: 1px solid var(--border); }
@@ -201,7 +194,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
 <body>
 
 <header>
-  <h1>AutoPatch-RL · Attack Graph</h1>
+  <h1>AutoPatch-RL · Kill Chain</h1>
   <div class="meta">run: %%RUN_NAME%% · rounds: %%NUM_ROUNDS%%</div>
 </header>
 
@@ -213,45 +206,57 @@ _TEMPLATE = r"""<!DOCTYPE html>
   </div>
   <button id="nextBtn">Next &rarr;</button>
   <div class="legend">
-    <span class="chip"><span class="dot" style="background:var(--red)"></span>bypassed</span>
-    <span class="chip"><span class="dot" style="background:var(--gray)"></span>blocked</span>
-    <span class="chip"><span class="dot" style="background:var(--green)"></span>severed</span>
-    <span class="chip"><span class="dot" style="background:var(--yellow)"></span>novel</span>
+    <span class="chip"><span class="swatch" style="background:var(--red)"></span>bypassed (probe-confirmed)</span>
+    <span class="chip"><span class="swatch" style="background:var(--yellow)"></span>reachable (no defence)</span>
+    <span class="chip"><span class="swatch" style="background:var(--green)"></span>severed (cut by policy)</span>
+    <span class="chip"><span class="swatch" style="background:var(--gray)"></span>blocked / unreachable</span>
   </div>
 </div>
 
 <main>
   <div class="graph">
-    <svg id="svg" viewBox="0 0 900 800" preserveAspectRatio="xMidYMid meet"></svg>
+    <svg id="svg" viewBox="0 0 1100 760" preserveAspectRatio="xMidYMid meet"></svg>
   </div>
   <aside class="sidebar">
     <div>
       <h2>Round Stats</h2>
       <div class="stat-row"><span>iteration</span><span class="v" id="sIter">-</span></div>
       <div class="stat-row"><span>score</span><span class="v" id="sScore">-</span></div>
-      <div class="stat-row"><span>edges</span><span class="v" id="sEdges">-</span></div>
-      <div class="stat-row"><span>bypassed</span><span class="v" id="sBypass">-</span></div>
-      <div class="stat-row"><span>blocked</span><span class="v" id="sBlock">-</span></div>
-      <div class="stat-row"><span>compromised endpoints</span><span class="v" id="sComp">-</span></div>
+      <div class="stat-row"><span>host owned</span><span class="v" id="sHost">-</span></div>
+      <div class="stat-row"><span>bypassed edges</span><span class="v bad" id="sBypass">-</span></div>
+      <div class="stat-row"><span>reachable edges</span><span class="v" id="sReach">-</span></div>
+      <div class="stat-row"><span>severed edges</span><span class="v good" id="sSever">-</span></div>
+      <div class="stat-row"><span>L2 caps reached</span><span class="v" id="sCaps">-</span></div>
+    </div>
+    <div>
+      <h2>Live Kill Paths to Host</h2>
+      <div class="path-list" id="paths"></div>
     </div>
     <div>
       <h2>Agent Rationale</h2>
       <div class="rationale" id="rationale">(no rationale)</div>
     </div>
-    <div>
-      <h2>Edges this round</h2>
+    <div class="edges-section">
+      <h2>Live Edges</h2>
       <div class="edge-list" id="edgeList"></div>
     </div>
   </aside>
 </main>
 
-<footer>Generated by AutoPatch-RL · attack_graph.html</footer>
+<footer>Generated by AutoPatch-RL · attack_graph.html (kill-chain)</footer>
 
 <script>
 const ROUNDS = %%ROUNDS_JSON%%;
-const ENDPOINTS = %%ENDPOINTS_JSON%%;
 
 let cur = 0;
+
+const LAYER_NAMES = {
+  1: "L1 Initial Access",
+  2: "L2 Capability",
+  3: "L3 Container Compromise",
+  4: "L4 Container Escape",
+  5: "L5 Host"
+};
 
 function escHtml(s) {
   const d = document.createElement('div');
@@ -261,98 +266,82 @@ function escHtml(s) {
 
 function renderGraph(round) {
   const svg = document.getElementById('svg');
-  // Collect technique nodes from edges
-  const techSet = new Map();   // technique -> {bypassed:bool, severed:bool, novel:bool}
-  for (const e of round.edges) {
-    let t = techSet.get(e.technique) || {bypassed:false, severed:false, novel:false};
-    if (e.status === 'bypassed') t.bypassed = true;
-    if (e.severed) t.severed = true;
-    if (e.novel) t.novel = true;
-    techSet.set(e.technique, t);
-  }
-  const techs = Array.from(techSet.keys()).sort((a,b) => {
-    const ta = techSet.get(a), tb = techSet.get(b);
-    if (ta.bypassed !== tb.bypassed) return ta.bypassed ? -1 : 1;
-    return a.localeCompare(b);
-  });
+  const W = 1100;
+  const margin = { top: 30, bottom: 30, left: 70, right: 30 };
 
-  const W = 900;
-  const epH = 60, epGap = 18;
-  const techH = 26, techGap = 6;
+  // Group nodes by layer.
+  const layers = {1: [], 2: [], 3: [], 4: [], 5: []};
+  for (const n of round.nodes) layers[n.layer].push(n);
 
-  const epX = 30, epW = 220;
-  const techX = 600, techW = 280;
-
-  const epStartY = 30;
-  const techStartY = 30;
-
-  const totalEpH = ENDPOINTS.length * (epH + epGap);
-  const totalTechH = techs.length * (techH + techGap);
-  const H = Math.max(800, totalEpH + 60, totalTechH + 60);
+  // Vertical: each layer gets equal vertical band.
+  const layerCount = 5;
+  const innerW = W - margin.left - margin.right;
+  // Tall enough to comfortably hold each layer; biggest layer is L2/L3 with ~6 nodes.
+  const layerH = 130;
+  const H = margin.top + layerCount * layerH + margin.bottom + 30;
 
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
 
-  // Position lookup
-  const epPos = {};
-  ENDPOINTS.forEach((ep, i) => {
-    epPos[ep.path] = {
-      x: epX, y: epStartY + i * (epH + epGap),
-      w: epW, h: epH,
-      cx: epX + epW, cy: epStartY + i * (epH + epGap) + epH/2,
-    };
-  });
-  const techPos = {};
-  techs.forEach((t, i) => {
-    techPos[t] = {
-      x: techX, y: techStartY + i * (techH + techGap),
-      w: techW, h: techH,
-      cx: techX, cy: techStartY + i * (techH + techGap) + techH/2,
-    };
-  });
+  // Position lookup keyed by node id.
+  const pos = {};
+  for (let layer = 1; layer <= 5; layer++) {
+    const arr = layers[layer];
+    const n = arr.length;
+    const cy = margin.top + (layer - 0.5) * layerH;
+    arr.forEach((node, i) => {
+      // Spread evenly across innerW.
+      const cx = margin.left + ((i + 0.5) * innerW) / n;
+      pos[node.id] = { cx, cy, w: 150, h: 56 };
+    });
+  }
 
   let svgInner = '';
 
-  // Edges first so they sit under nodes
+  // Layer dividers + labels.
+  for (let layer = 1; layer <= 5; layer++) {
+    const y = margin.top + layer * layerH;
+    if (layer < 5) {
+      svgInner += `<line class="layer-divider" x1="${margin.left}" y1="${y}" x2="${W - margin.right}" y2="${y}"/>`;
+    }
+    const labelY = margin.top + (layer - 0.5) * layerH - layerH/2 + 14;
+    svgInner += `<text x="14" y="${labelY}" fill="#6e7681" font-family="monospace" font-size="11" letter-spacing="1px">${escHtml(LAYER_NAMES[layer])}</text>`;
+  }
+
+  // Edges first (under nodes).
   for (const e of round.edges) {
-    const p1 = epPos[e.endpoint];
-    const p2 = techPos[e.technique];
+    const p1 = pos[e.source];
+    const p2 = pos[e.target];
     if (!p1 || !p2) continue;
     const cls = ['edge', e.status];
-    if (e.severed) cls.push('severed');
-    if (e.novel) cls.push('novel');
-    const dx = (p2.cx - p1.cx) / 2;
-    const path = `M ${p1.cx} ${p1.cy} C ${p1.cx + dx} ${p1.cy}, ${p2.cx - dx} ${p2.cy}, ${p2.cx} ${p2.cy}`;
-    const title = `${e.endpoint} <- ${e.technique} [${e.status}]` +
-      (e.severed ? ' (severed)' : '') + (e.novel ? ' (novel)' : '') +
-      (e.payload_preview ? `\n${e.payload_preview}` : '');
+    if (e.regressed)       cls.push('regressed');
+    if (e.novel_severance) cls.push('novel-severance');
+    // Vertical bezier from bottom of source to top of target.
+    const y1 = p1.cy + p1.h/2;
+    const y2 = p2.cy - p2.h/2;
+    const dy = (y2 - y1) / 2;
+    const path = `M ${p1.cx} ${y1} C ${p1.cx} ${y1 + dy}, ${p2.cx} ${y2 - dy}, ${p2.cx} ${y2}`;
+    const reqNote = (e.requires && e.requires.length) ? ` [+needs ${e.requires.join(',')}]` : '';
+    const sev = e.severance_label ? `\nseverance: ${e.severance_label}` : '';
+    const emp = e.empirical ? `\nempirical probe: ${e.empirical} (${e.origin})` : `\norigin: ${e.origin}`;
+    const title = `${e.source} -> ${e.target}\nlabel: ${e.label}${reqNote}\nstatus: ${e.status}${emp}${sev}`;
     svgInner += `<path class="${cls.join(' ')}" d="${path}"><title>${escHtml(title)}</title></path>`;
   }
 
-  // Endpoint nodes
-  ENDPOINTS.forEach(ep => {
-    const p = epPos[ep.path];
-    const status = round.endpoint_status[ep.path] || 'unknown';
-    svgInner += `<g class="node-ep ${status}">
-      <rect x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}"></rect>
-      <text x="${p.x + 14}" y="${p.y + 26}" font-weight="600">${escHtml(ep.path)}</text>
-      <text class="vuln" x="${p.x + 14}" y="${p.y + 44}">${escHtml(ep.vuln)} (${ep.cwe})</text>
+  // Nodes.
+  for (const n of round.nodes) {
+    const p = pos[n.id];
+    const reachable = !!round.node_reachable[n.id];
+    const cls = reachable ? 'compromised' : 'safe';
+    const x = p.cx - p.w/2;
+    const y = p.cy - p.h/2;
+    const titleAttr = `${n.id}\n${n.description || ''}`;
+    svgInner += `<g class="node-box ${cls}">
+      <title>${escHtml(titleAttr)}</title>
+      <rect x="${x}" y="${y}" width="${p.w}" height="${p.h}"></rect>
+      <text x="${p.cx}" y="${p.cy - 4}" text-anchor="middle" font-weight="600">${escHtml(n.label)}</text>
+      <text class="desc" x="${p.cx}" y="${p.cy + 14}" text-anchor="middle">${escHtml((n.description || '').slice(0, 32))}</text>
     </g>`;
-  });
-
-  // Technique nodes
-  techs.forEach(t => {
-    const p = techPos[t];
-    const meta = techSet.get(t);
-    let stroke = 'var(--border)';
-    if (meta.bypassed) stroke = 'var(--red)';
-    else if (meta.severed) stroke = 'var(--green)';
-    if (meta.novel) stroke = 'var(--yellow)';
-    const label = t.length > 38 ? t.slice(0, 36) + '...' : t;
-    svgInner += `<g class="node-tech">
-      <rect x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}" style="stroke:${stroke}"></rect>
-      <text x="${p.x + 8}" y="${p.y + 17}">${escHtml(label)}</text>
-    </g>`;
-  });
+  }
 
   svg.innerHTML = svgInner;
 }
@@ -360,33 +349,55 @@ function renderGraph(round) {
 function renderSidebar(round) {
   document.getElementById('sIter').textContent = round.iteration;
   const sc = round.score == null ? '-' : (round.score >= 0 ? '+' : '') + round.score;
-  const scEl = document.getElementById('sScore');
-  scEl.textContent = sc;
-  scEl.className = 'v ' + (round.score == null ? '' : (round.score >= 0 ? 'score-positive' : 'score-negative'));
-  document.getElementById('sEdges').textContent = round.stats.total_edges;
-  document.getElementById('sBypass').textContent = round.stats.bypassed;
-  document.getElementById('sBlock').textContent = round.stats.blocked;
-  document.getElementById('sComp').textContent = round.stats.compromised_endpoints + ' / ' + ENDPOINTS.length;
+  document.getElementById('sScore').textContent = sc;
+  const host = round.stats.host_owned;
+  const sh = document.getElementById('sHost');
+  sh.textContent = host ? 'YES' : 'no';
+  sh.className = 'v ' + (host ? 'bad' : 'good');
+  document.getElementById('sBypass').textContent = round.stats.bypassed_edges;
+  document.getElementById('sReach').textContent = round.stats.reachable_edges;
+  document.getElementById('sSever').textContent = round.stats.severed_edges;
+  document.getElementById('sCaps').textContent = round.stats.compromised_l2_capabilities + ' / 6';
   document.getElementById('rationale').textContent = round.rationale || '(no rationale)';
+
+  const paths = document.getElementById('paths');
+  paths.innerHTML = '';
+  if (!round.kill_paths || round.kill_paths.length === 0) {
+    const div = document.createElement('div');
+    div.style.color = 'var(--green)';
+    div.style.fontSize = '12px';
+    div.textContent = 'No live path to host_owned this round.';
+    paths.appendChild(div);
+  } else {
+    for (const p of round.kill_paths) {
+      const div = document.createElement('div');
+      div.className = 'path';
+      div.textContent = p.join(' -> ');
+      paths.appendChild(div);
+    }
+  }
 
   const list = document.getElementById('edgeList');
   list.innerHTML = '';
-  // Sort: bypassed > severed > novel > blocked
-  const sorted = round.edges.slice().sort((a,b) => {
-    const rank = e => (e.status === 'bypassed' ? 0 : (e.severed ? 1 : (e.novel ? 2 : 3)));
+  const interesting = round.edges.filter(e =>
+    e.status === 'bypassed' || e.status === 'reachable' ||
+    e.regressed || e.novel_severance
+  );
+  interesting.sort((a, b) => {
+    const rank = e => (e.status === 'bypassed' ? 0 : (e.regressed ? 1 : (e.novel_severance ? 2 : (e.status === 'reachable' ? 3 : 4))));
     return rank(a) - rank(b);
   });
-  sorted.forEach(e => {
+  for (const e of interesting) {
     const cls = ['edge-item', e.status];
-    if (e.severed) cls.push('severed');
-    if (e.novel) cls.push('novel');
-    const tag = e.severed ? ' [SEV]' : (e.novel ? ' [NEW]' : '');
+    let tag = '';
+    if (e.regressed) tag = ' [REGRESSED]';
+    else if (e.novel_severance) tag = ' [NEWLY-SEVERED]';
     const div = document.createElement('div');
     div.className = cls.join(' ');
-    div.textContent = `${e.endpoint} ← ${e.technique}${tag}`;
-    if (e.payload_preview) div.title = e.payload_preview;
+    div.textContent = `${e.source} -> ${e.target}${tag}`;
+    div.title = `${e.label}\n${e.severance_label || ''}`;
     list.appendChild(div);
-  });
+  }
 }
 
 function render() {
@@ -401,8 +412,7 @@ function render() {
 
 document.getElementById('slider').max = ROUNDS.length - 1;
 document.getElementById('slider').addEventListener('input', e => {
-  cur = parseInt(e.target.value, 10);
-  render();
+  cur = parseInt(e.target.value, 10); render();
 });
 document.getElementById('prevBtn').onclick = () => { if (cur > 0) { cur--; render(); } };
 document.getElementById('nextBtn').onclick = () => { if (cur < ROUNDS.length - 1) { cur++; render(); } };
@@ -424,10 +434,6 @@ def generate_html(run_dir: Path) -> Path | None:
         return None
     html = _TEMPLATE
     html = html.replace("%%ROUNDS_JSON%%", json.dumps(rounds, ensure_ascii=False))
-    html = html.replace(
-        "%%ENDPOINTS_JSON%%",
-        json.dumps(attack_graph.ENDPOINTS, ensure_ascii=False),
-    )
     html = html.replace("%%RUN_NAME%%", run_dir.name)
     html = html.replace("%%NUM_ROUNDS%%", str(len(rounds)))
     out = run_dir / "attack_graph.html"

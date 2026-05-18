@@ -161,16 +161,17 @@ def main() -> int:
             )
 
         # ── Attack graph (per-round) ────────────────────────────────
-        # Build the endpoint x technique bipartite graph and merge prior
-        # rounds' provenance so the agent can see severed/novel edges.
+        # Build the kill-chain snapshot from probe results + current policy.
         prior_graphs = attack_graph.load_run_graphs(run_dir)
-        round_graph = attack_graph.build_round_graph(it, results, dyn_results)
+        round_graph = attack_graph.build_round_graph(it, results, dyn_results, current_yaml)
         round_graph = attack_graph.merge_history(round_graph, prior_graphs)
         attack_graph.write_graph(it_dir, round_graph)
+        ag_stats = round_graph["stats"]
         console.print(
-            f"[dim]attack_graph: edges={round_graph['stats']['total_edges']}, "
-            f"bypassed={round_graph['stats']['bypassed']}, "
-            f"compromised_endpoints={round_graph['stats']['compromised_endpoints']}[/dim]"
+            f"[dim]kill_chain: host_owned={ag_stats['host_owned']} "
+            f"reachable_edges={ag_stats['reachable_edges']} "
+            f"severed_edges={ag_stats['severed_edges']} "
+            f"kill_paths={len(round_graph.get('kill_paths', []))}[/dim]"
         )
         last_it_dir = it_dir
 

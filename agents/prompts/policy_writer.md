@@ -75,39 +75,75 @@ Fix the highest-severity still-allowed probe first. Rough order:
 - The latest `probe_results.json`.
 - A short history list.
 - The JSON schema.
-- An `attack_graph` text block describing the live state of every
-  (endpoint, technique) edge from this round (see "Reading the attack
-  graph" below). When present, this is your primary state.
+- An `attack_graph` text block: a 5-layer kill chain catalogue with the
+  status of every edge this round (see "Reading the kill chain" below).
+  When present, this is your primary state.
 - Optional `self_check_warnings`: machine-detected ways your current
   policy is shooting itself in the foot. Treat each warning as a hard
   TODO to undo before proposing new changes.
 
-# Reading the attack graph
+# Reading the kill chain
 
-The `attack_graph` block looks like:
+The graph has 5 layers, top to bottom:
 
 ```
-# Attack graph (iter N)
-Endpoint status:
-  [X]  /ping    Command Injection      <- compromised this round
-  [OK] /load    Insecure Deser.        <- defended this round
-  [?]  ...                             <- not exercised
-
-Active edges:
-  /ping  <- semicolon injection        [bypassed] [ACTIVE-BYPASS]
-  /ping  <- URL-encoded semicolon      [blocked]
-  /fetch <- 127.0.0.1 loopback         [bypassed] [ACTIVE-BYPASS]
-  /read  <- URL-encoded dot-dot        [blocked] [SEVERED]   <- you fixed this!
-  /render <- __class__ chain           [bypassed] [NEW]      <- new this round
+L1 Initial Access        6 endpoints (/ping, /fetch, /read, /search, /render, /load)
+L2 Capability            shell_exec, http_egress, file_read, db_read, python_eval, pickle_rce
+L3 Container Compromise  read_shadow, read_kallsyms, create_userns, read_host, docker_sock, metadata_ssrf
+L4 Container Escape      chroot_host, docker_sock_rce, kernel_exploit, sysadmin_escape
+L5 Host                  host_owned (terminal)
 ```
 
-Tags:
-- `ACTIVE-BYPASS` — the path is open RIGHT NOW. Highest priority.
-- `SEVERED`       — used to bypass earlier rounds; you closed it. Don't undo.
-- `NEW`           — first appeared this round (probably a dynamic red payload).
+Each `attack_graph` block looks like:
 
-Use the graph to pick ONE control category whose change closes the most
-ACTIVE-BYPASS edges without resurrecting any SEVERED ones.
+```
+# Kill chain (iter N)
+stats: host_owned=False reachable_edges=8 severed_edges=4 bypassed_edges=5
+
+## L1 Initial Access
+  [X] ia_ping              POST /ping        <- compromised
+  [X] ia_fetch             GET /fetch
+  ...
+
+## L2 Capability
+  [X] cap_shell_exec       Shell exec (root)
+  [.] cap_pickle_rce       Pickle RCE        <- not yet reached
+
+## Live and recently-changed edges
+  ia_ping -> cap_shell_exec  [BYPASSED] via 'shell metachar injection'
+  cap_shell_exec -> cc_read_kallsyms [SEVERED, NEWLY-SEVERED]
+                   via 'cat /proc/kallsyms'
+  cap_shell_exec -> cc_read_host [REGRESSED, REACHABLE]
+                   via 'ls /host'
+
+## Live kill paths to host_owned: NONE (host not reachable)
+```
+
+Edge status semantics:
+- `BYPASSED`    : a probe in this round empirically confirmed the
+                  attack worked. **Highest priority to fix.**
+- `REACHABLE`   : no defence in place AND source node is reachable. The
+                  attack is a free path even though no probe tested it.
+- `SEVERED`     : your policy cuts this edge.
+- `BLOCKED`     : a probe in this round empirically confirmed it failed.
+- `UNREACHABLE` : the source node is not reachable, edge is moot.
+
+Edge tags:
+- `NEWLY-SEVERED` : you just severed this edge **this round**. Don't undo it.
+- `REGRESSED`     : you had severed this edge in an earlier round but it
+                    is now bypassed/reachable again. **Find out what you broke.**
+
+# How to choose your one-change
+
+Your goal is to minimise live kill paths to `host_owned`. Strategy:
+1. If `host_owned` is reachable, find a node on every kill path and sever
+   one edge into it. Container-escape edges (L3->L4 and L2->L4) are the
+   highest leverage — closing one of `cc_read_host`, `cc_docker_sock`, or
+   `esc_sysadmin_escape` typically closes multiple paths at once.
+2. If `host_owned` is unreachable but BYPASSED edges remain, pick the
+   bypassed edge whose source has the most outgoing reachable edges
+   (closing it cascades).
+3. Never resurrect a `SEVERED` or `NEWLY-SEVERED` edge.
 
 # Self-defeating policies (do NOT do)
 
