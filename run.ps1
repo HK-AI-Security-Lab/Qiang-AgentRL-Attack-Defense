@@ -1,7 +1,7 @@
 # AutoPatch-RL Demo - Windows PowerShell launcher
 # Usage:
-#   .\run.ps1               # single-side demo (blue defender loop)
-#   .\run.ps1 battle        # red vs blue adversarial demo
+#   .\run.ps1               # blue defender loop (single-side)
+#   .\run.ps1 graph         # open latest attack_graph.html
 #   .\run.ps1 report        # open latest report.md
 #   .\run.ps1 down          # stop target container
 #   .\run.ps1 clean         # wipe generated + runs
@@ -9,7 +9,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('demo', 'battle', 'report', 'graph', 'down', 'clean', 'install', 'build')]
+    [ValidateSet('demo', 'report', 'graph', 'down', 'clean', 'install', 'build')]
     [string]$Command = 'demo'
 )
 
@@ -158,20 +158,6 @@ function Run-Demo {
     exit $code
 }
 
-function Run-Battle {
-    Check-Env; Check-Bash; Check-Docker
-    Use-Venv
-    if (-not (Test-PythonImport 'openai')) { Install-Deps }
-    $imgId = (docker images -q autopatch-target:vuln) -join ''
-    if (-not $imgId) { Build-Target }
-
-    Write-Step 'Running red-vs-blue demo: python -m core.adversarial'
-    & .\.venv\Scripts\python.exe -m core.adversarial
-    $code = $LASTEXITCODE
-    Stop-Target
-    exit $code
-}
-
 function Open-Report {
     if (-not (Test-Path 'reports\runs')) {
         Write-Err2 'no run records yet'
@@ -222,7 +208,6 @@ switch ($Command) {
     'install' { Install-Deps }
     'build'   { Build-Target }
     'demo'    { Run-Demo }
-    'battle'  { Run-Battle }
     'report'  { Open-Report }
     'graph'   { Open-Graph }
     'down'    { Stop-Target }

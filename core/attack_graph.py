@@ -295,10 +295,14 @@ def _resolve_policy(policy_intent: dict | str | None) -> dict | None:
 def build_round_graph(
     iteration: int,
     probe_results: list[dict[str, Any]] | None,
-    red_dynamic_results: list[dict[str, Any]] | None = None,
+    _unused: Any = None,
     policy_intent: dict | str | None = None,
 ) -> dict[str, Any]:
-    """Snapshot the kill chain for one iteration."""
+    """Snapshot the kill chain for one iteration.
+
+    `_unused` is kept for backwards-compat with older callers that passed
+    `red_dynamic_results`; it is ignored in this single-side build.
+    """
     pi = _resolve_policy(policy_intent) or {}
     probe_status = _probe_status_table(probe_results)
 
