@@ -15,13 +15,13 @@ Sorted by score = max(CVSS) x criticality x vuln_factor - depth_penalty.
 
 | score | cvss | depth | target | path |
 |---:|---:|---:|---|---|
-| 20.1 | 9.2 | 3 | `node-data-01` | `internet -> user_db -> postgres-image -> node-data-01` |
-| 20.1 | 9.2 | 3 | `node-edge-01` | `internet -> api_gateway -> api-gw-image -> node-edge-01` |
-| 19.8 | 9.2 | 4 | `node-app-01` | `internet -> api_gateway -> order_svc -> order-app-image -> node-app-01` |
-| 19.8 | 9.2 | 4 | `node-app-02` | `internet -> api_gateway -> search_svc -> search-app-image -> node-app-02` |
-| 19.5 | 9.2 | 5 | `node-app-01` | `internet -> api_gateway -> order_svc -> payment_svc -> payment-app-image -> node-app-01` |
-| 19.5 | 9.2 | 5 | `node-data-01` | `internet -> api_gateway -> order_svc -> user_db -> postgres-image -> node-data-01` |
-| 19.5 | 9.2 | 5 | `node-data-01` | `internet -> api_gateway -> order_svc -> cache_redis -> redis-image -> node-data-01` |
+| 21.9 | 10.0 | 3 | `node-data-01` | `internet -> user_db -> postgres-image -> node-data-01` |
+| 21.9 | 10.0 | 3 | `node-edge-01` | `internet -> api_gateway -> api-gw-image -> node-edge-01` |
+| 21.6 | 10.0 | 4 | `node-app-01` | `internet -> api_gateway -> order_svc -> order-app-image -> node-app-01` |
+| 21.6 | 10.0 | 4 | `node-app-02` | `internet -> api_gateway -> search_svc -> search-app-image -> node-app-02` |
+| 21.3 | 10.0 | 5 | `node-app-01` | `internet -> api_gateway -> order_svc -> payment_svc -> payment-app-image -> node-app-01` |
+| 21.3 | 10.0 | 5 | `node-data-01` | `internet -> api_gateway -> order_svc -> user_db -> postgres-image -> node-data-01` |
+| 21.3 | 10.0 | 5 | `node-data-01` | `internet -> api_gateway -> order_svc -> cache_redis -> redis-image -> node-data-01` |
 | 16.88 | 7.5 | 1 | `api_gateway` | `internet -> api_gateway` |
 | 16.88 | 7.5 | 1 | `user_db` | `internet -> user_db` |
 | 16.57 | 7.5 | 2 | `order_svc` | `internet -> api_gateway -> order_svc` |
@@ -34,11 +34,11 @@ Patch / harden these nodes first. `paths_cut` is how many of the kill paths abov
 
 | rank | node | kind | paths_cut | score_cut | betweenness | blend |
 |---:|---|---|---:|---:|---:|---:|
-| 1 | `api_gateway` | service | 12 | 210.8 | 0.0392 | 0.7118 |
-| 2 | `order_svc` | service | 7 | 127.11 | 0.0447 | 0.4217 |
-| 3 | `user_db` | service | 2 | 39.6 | 0.03 | 0.1257 |
-| 4 | `search_svc` | service | 2 | 36.07 | 0.0174 | 0.1219 |
-| 5 | `postgres-image` | workload | 2 | 39.6 | 0.0169 | 0.1217 |
+| 1 | `api_gateway` | service | 12 | 221.6 | 0.0392 | 0.7118 |
+| 2 | `order_svc` | service | 7 | 134.31 | 0.0447 | 0.4217 |
+| 3 | `user_db` | service | 2 | 43.2 | 0.03 | 0.1257 |
+| 4 | `search_svc` | service | 2 | 37.87 | 0.0174 | 0.1219 |
+| 5 | `postgres-image` | workload | 2 | 43.2 | 0.0169 | 0.1217 |
 
 ## 4. Method note
 

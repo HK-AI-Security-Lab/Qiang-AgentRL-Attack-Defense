@@ -4,22 +4,19 @@
     "cve_id": null,
     "affected_node_type": "InfraNode",
     "pre_condition": [
-      "local_low_priv",
       "untrusted_input"
     ],
     "post_condition": [
-      "escape_to_host",
-      "privilege_escalation",
       "rce"
     ],
-    "cvss": 9.2,
-    "exploit_maturity": "poc",
+    "cvss": 10.0,
+    "exploit_maturity": "unproven",
     "match_hints": {
       "project_name": "linux",
       "language": "c",
       "vuln_type": "type-confusion"
     },
-    "rationale": "Kernel type-confusion in parser subsystem allows local attacker with untrusted input to achieve code execution and privilege escalation.",
+    "rationale": "The description indicates kernel code execution from a type-confusion vulnerability, which can directly lead to remote code execution.",
     "source": "llm"
   },
   {
@@ -56,13 +53,13 @@
       "rce"
     ],
     "cvss": 7.5,
-    "exploit_maturity": "poc",
+    "exploit_maturity": "functional",
     "match_hints": {
       "project_name": "chromium_v8",
       "language": "cpp",
-      "vuln_type": "logic_error"
+      "vuln_type": "logic-error"
     },
-    "rationale": "V8 WASM logic error in signature validation allows untrusted WASM bytecode to trigger memory corruption leading to RCE in the browser engine.",
+    "rationale": "Logic error in WebAssembly-to-JS wrapper handling allows invalid signatures to bypass validation, enabling code execution in the V8 engine via untrusted WASM bytecode.",
     "source": "llm"
   },
   {
@@ -156,23 +153,21 @@
   {
     "task_id": "exploitbench:v8-cve-2024-10231",
     "cve_id": "CVE-2024-10231",
-    "affected_node_type": "Service",
+    "affected_node_type": "Workload",
     "pre_condition": [
-      "network_reach",
       "untrusted_input"
     ],
     "post_condition": [
-      "escape_to_host",
       "rce"
     ],
-    "cvss": 9.2,
-    "exploit_maturity": "functional",
+    "cvss": 9.0,
+    "exploit_maturity": "unproven",
     "match_hints": {
       "project_name": "chromium_v8",
       "language": "cpp",
-      "vuln_type": "type_confusion"
+      "vuln_type": "type-confusion"
     },
-    "rationale": "Type confusion in V8 WASM JIT with sandbox bypass enables arbitrary code execution and container escape in the browser engine.",
+    "rationale": "The vulnerability involves a type confusion in the V8 engine, which can lead to remote code execution.",
     "source": "llm"
   }
 ]

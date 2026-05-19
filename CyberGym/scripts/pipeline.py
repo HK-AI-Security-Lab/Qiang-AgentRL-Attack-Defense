@@ -210,7 +210,12 @@ def main() -> int:
     Path(args.out_paths ).write_text(json.dumps(paths_compact, indent=2, ensure_ascii=False), encoding="utf-8")
     Path(args.out_chokes).write_text(json.dumps(chokes,        indent=2, ensure_ascii=False), encoding="utf-8")
 
-    out_html = render_html(g, args.out_html, kill_paths=paths_compact, chokepoints=chokes)
+    out_html = render_html(
+        g, args.out_html,
+        kill_paths=paths_compact,
+        chokepoints=chokes,
+        capability_table=table,
+    )
     print(f"  HTML:   {out_html}")
 
     _write_report(

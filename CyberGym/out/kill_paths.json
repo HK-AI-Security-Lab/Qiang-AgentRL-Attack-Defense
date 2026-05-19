@@ -31,14 +31,14 @@
           "DEPENDS_ON",
           "VULN_EXPLOIT"
         ],
-        "max_cvss": 9.2
+        "max_cvss": 10.0
       }
     ],
     "uses_vuln": true,
     "vuln_count": 2,
-    "max_cvss": 9.2,
+    "max_cvss": 10.0,
     "depth": 3,
-    "score": 20.1
+    "score": 21.9
   },
   {
     "target": "node-edge-01",
@@ -73,14 +73,14 @@
           "DEPENDS_ON",
           "VULN_EXPLOIT"
         ],
-        "max_cvss": 9.2
+        "max_cvss": 10.0
       }
     ],
     "uses_vuln": true,
     "vuln_count": 2,
-    "max_cvss": 9.2,
+    "max_cvss": 10.0,
     "depth": 3,
-    "score": 20.1
+    "score": 21.9
   },
   {
     "target": "node-app-01",
@@ -124,14 +124,14 @@
           "DEPENDS_ON",
           "VULN_EXPLOIT"
         ],
-        "max_cvss": 9.2
+        "max_cvss": 10.0
       }
     ],
     "uses_vuln": true,
     "vuln_count": 2,
-    "max_cvss": 9.2,
+    "max_cvss": 10.0,
     "depth": 4,
-    "score": 19.8
+    "score": 21.6
   },
   {
     "target": "node-app-02",
@@ -175,14 +175,14 @@
           "DEPENDS_ON",
           "VULN_EXPLOIT"
         ],
-        "max_cvss": 9.2
+        "max_cvss": 10.0
       }
     ],
     "uses_vuln": true,
     "vuln_count": 2,
-    "max_cvss": 9.2,
+    "max_cvss": 10.0,
     "depth": 4,
-    "score": 19.8
+    "score": 21.6
   },
   {
     "target": "node-app-01",
@@ -236,14 +236,14 @@
           "DEPENDS_ON",
           "VULN_EXPLOIT"
         ],
-        "max_cvss": 9.2
+        "max_cvss": 10.0
       }
     ],
     "uses_vuln": true,
     "vuln_count": 2,
-    "max_cvss": 9.2,
+    "max_cvss": 10.0,
     "depth": 5,
-    "score": 19.5
+    "score": 21.3
   },
   {
     "target": "node-data-01",
@@ -297,14 +297,14 @@
           "DEPENDS_ON",
           "VULN_EXPLOIT"
         ],
-        "max_cvss": 9.2
+        "max_cvss": 10.0
       }
     ],
     "uses_vuln": true,
     "vuln_count": 2,
-    "max_cvss": 9.2,
+    "max_cvss": 10.0,
     "depth": 5,
-    "score": 19.5
+    "score": 21.3
   },
   {
     "target": "node-data-01",
@@ -357,14 +357,14 @@
           "DEPENDS_ON",
           "VULN_EXPLOIT"
         ],
-        "max_cvss": 9.2
+        "max_cvss": 10.0
       }
     ],
     "uses_vuln": true,
     "vuln_count": 2,
-    "max_cvss": 9.2,
+    "max_cvss": 10.0,
     "depth": 5,
-    "score": 19.5
+    "score": 21.3
   },
   {
     "target": "api_gateway",

@@ -74,6 +74,7 @@ def _serialise(g: nx.MultiDiGraph) -> dict[str, Any]:
             "origin": attrs.get("origin", ""),
             "notes":  attrs.get("notes", ""),
             "cve_id": attrs.get("cve_id"),
+            "task_id":attrs.get("task_id"),
             "cvss":   attrs.get("cvss"),
             "post_condition": attrs.get("post_condition"),
             "parallel_idx": idx,
@@ -206,6 +207,27 @@ _TEMPLATE = r"""<!DOCTYPE html>
   .choke-item .label { color: var(--high); font-weight: 600; }
   .choke-item .num { color: var(--vuln); font-weight: 600; }
 
+  .cap-item {
+    font-family: var(--font); font-size: 11px; line-height: 1.45;
+    padding: 6px 8px; border-radius: 6px;
+    background: var(--card2); border: 1px solid var(--border);
+    cursor: pointer; transition: all 0.15s;
+  }
+  .cap-item:hover { border-color: var(--vuln); }
+  .cap-item.active { border-color: var(--vuln); background: rgba(248,81,73,0.10); }
+  .cap-item .top { display: flex; justify-content: space-between; gap: 6px; }
+  .cap-item .cve { color: var(--vuln); font-weight: 600; }
+  .cap-item .ant {
+    background: var(--bg); padding: 1px 6px; border-radius: 3px;
+    font-size: 10px; color: var(--text2);
+  }
+  .cap-item .meta { color: var(--text2); font-size: 10px; margin-top: 3px; }
+  .cap-item .ghost { opacity: 0.55; }
+  .cap-item .ghost-tag {
+    background: var(--gray); color: #fff; font-size: 9px;
+    padding: 1px 5px; border-radius: 3px; margin-left: 4px;
+  }
+
   footer { padding: 12px 22px; color: var(--text3); font-size: 11px;
            text-align: center; border-top: 1px solid var(--border); }
 </style>
@@ -239,11 +261,19 @@ _TEMPLATE = r"""<!DOCTYPE html>
       <div class="stat-row"><span>workloads</span><span class="v" id="sWork">-</span></div>
       <div class="stat-row"><span>infra nodes</span><span class="v" id="sInfra">-</span></div>
       <div class="stat-row"><span>vuln edges</span><span class="v" id="sVuln">-</span></div>
+      <div class="stat-row"><span>capabilities</span><span class="v" id="sCaps">-</span></div>
       <div class="stat-row"><span>kill paths</span><span class="v" id="sPaths">-</span></div>
     </div>
     <div id="chokeBox" style="display:none">
       <h2>Top Chokepoints</h2>
       <div class="path-list" id="chokes"></div>
+    </div>
+    <div id="capBox" style="display:none">
+      <h2>Capability Table (CVE intel)</h2>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:6px">
+        Base Model output. Click a row to highlight every red edge it produced.
+      </div>
+      <div class="path-list" id="caps"></div>
     </div>
     <div id="pathBox" style="display:none">
       <h2>Kill Paths (click to highlight)</h2>
@@ -263,9 +293,11 @@ const PAYLOAD     = %%PAYLOAD%%;
 const LAYER_LABELS= %%LAYER_LABELS%%;
 const KILL_PATHS  = %%KILL_PATHS%%;
 const CHOKEPOINTS = %%CHOKEPOINTS%%;
+const CAPABILITIES= %%CAPABILITIES%%;
 
-let selected = null;
+let selected      = null;
 let activePathIdx = null;
+let activeCapKey  = null;   // "<task_id>" — when set, highlights all VULN_EXPLOIT edges from this capability
 
 function escHtml(s) {
   const d = document.createElement('div');
@@ -364,7 +396,9 @@ function drawSvg() {
     g.addEventListener('click', () => {
       selected = (selected === g.dataset.id) ? null : g.dataset.id;
       activePathIdx = null;
+      activeCapKey  = null;
       document.querySelectorAll('.path-item').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.cap-item').forEach(el => el.classList.remove('active'));
       svgClassToggle();
       renderDetail();
     });
@@ -416,7 +450,64 @@ function renderStats() {
   document.getElementById('sWork').textContent  = counts.workload;
   document.getElementById('sInfra').textContent = counts.infra_node;
   document.getElementById('sVuln').textContent  = PAYLOAD.edges.filter(e => e.type === 'VULN_EXPLOIT').length;
+  document.getElementById('sCaps').textContent  = CAPABILITIES.length;
   document.getElementById('sPaths').textContent = KILL_PATHS.length;
+}
+
+function renderCaps() {
+  if (!CAPABILITIES.length) return;
+  document.getElementById('capBox').style.display = '';
+  const list = document.getElementById('caps');
+  list.innerHTML = '';
+  // Count how many VULN_EXPLOIT edges each capability produced.
+  const edgeCount = {};
+  for (const e of PAYLOAD.edges) {
+    if (e.type !== 'VULN_EXPLOIT') continue;
+    const k = e.task_id || e.cve_id;
+    if (k) edgeCount[k] = (edgeCount[k] || 0) + 1;
+  }
+  CAPABILITIES.forEach(cap => {
+    const key   = cap.task_id;
+    const count = edgeCount[key] || 0;
+    const ghost = count === 0;
+    const cveLabel = cap.cve_id || cap.task_id.split(':').pop();
+    const post = (cap.post_condition || []).join(', ');
+    const item = document.createElement('div');
+    item.className = 'cap-item' + (ghost ? ' ghost' : '');
+    item.dataset.key = key;
+    item.innerHTML =
+      '<div class="top">' +
+        '<span class="cve">' + escHtml(cveLabel) + '</span>' +
+        '<span class="ant">' + escHtml(cap.affected_node_type) + '</span>' +
+      '</div>' +
+      '<div class="meta">' +
+        'cvss=' + (cap.cvss != null ? cap.cvss.toFixed(1) : '?') + ' ' +
+        '| post: ' + escHtml(post) + ' ' +
+        '| edges injected: <b>' + count + '</b>' +
+        (ghost ? '<span class="ghost-tag">no match</span>' : '') +
+        ' (src=' + escHtml(cap.source || '?') + ')' +
+      '</div>' +
+      '<div class="meta" style="font-style:italic">' + escHtml(cap.rationale || '') + '</div>';
+    if (!ghost) {
+      item.addEventListener('click', () => { highlightCapability(key); });
+    } else {
+      item.style.cursor = 'default';
+      item.title = 'No inventory node matched this capability — VULN_EXPLOIT edge was not injected.';
+    }
+    list.appendChild(item);
+  });
+}
+
+function highlightCapability(key) {
+  activeCapKey  = (activeCapKey === key) ? null : key;
+  // Clear other selections so the highlight is unambiguous.
+  activePathIdx = null;
+  selected      = null;
+  document.querySelectorAll('.path-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.cap-item').forEach(el => {
+    el.classList.toggle('active', activeCapKey != null && el.dataset.key === activeCapKey);
+  });
+  svgClassToggle();
 }
 
 function renderPaths() {
@@ -462,6 +553,8 @@ function renderChokes() {
 
 function highlightPath(idx) {
   activePathIdx = (activePathIdx === idx) ? null : idx;
+  activeCapKey  = null;
+  document.querySelectorAll('.cap-item').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.path-item').forEach(el => {
     el.classList.toggle('active', String(activePathIdx) === el.dataset.idx);
   });
@@ -485,10 +578,33 @@ function svgClassToggle() {
     if (g) g.classList.add('choke');
   }
 
-  // Highlight active kill path
+  // (a) Capability highlight: mark every red edge produced by this capability.
+  if (activeCapKey !== null) {
+    const nodesTouched = new Set();
+    svg.querySelectorAll('.edge').forEach(e => {
+      // edge dataset doesn't carry task_id; we re-find the corresponding payload edge.
+      const found = PAYLOAD.edges.find(pe =>
+        pe.source === e.dataset.src && pe.target === e.dataset.dst &&
+        pe.type === 'VULN_EXPLOIT' &&
+        ((pe.task_id || pe.cve_id) === activeCapKey)
+      );
+      if (found) {
+        e.classList.add('kill');
+        nodesTouched.add(e.dataset.src);
+        nodesTouched.add(e.dataset.dst);
+      }
+    });
+    nodesTouched.forEach(nid => {
+      const g = svg.querySelector('.node-box[data-id="' + cssEsc(nid) + '"]');
+      if (g) g.classList.add('kill');
+    });
+    svg.querySelectorAll('.edge:not(.kill)').forEach(e => e.classList.add('dim'));
+    return;
+  }
+
+  // (b) Highlight active kill path
   if (activePathIdx !== null && KILL_PATHS[activePathIdx]) {
     const p = KILL_PATHS[activePathIdx];
-    const nodeSet = new Set(p.path);
     for (const nid of p.path) {
       const g = svg.querySelector('.node-box[data-id="' + cssEsc(nid) + '"]');
       if (g) g.classList.add('kill');
@@ -500,10 +616,11 @@ function svgClassToggle() {
       });
     }
     svg.querySelectorAll('.edge:not(.kill)').forEach(e => e.classList.add('dim'));
+    return;
   }
 
-  // Highlight neighbours of selected node (only when no path active)
-  if (selected && activePathIdx === null) {
+  // (c) Highlight neighbours of selected node
+  if (selected) {
     svg.querySelectorAll('.edge').forEach(e => {
       const incident = (e.dataset.src === selected || e.dataset.dst === selected);
       e.classList.toggle('highlight', incident);
@@ -521,6 +638,7 @@ drawSvg();
 renderStats();
 renderPaths();
 renderChokes();
+renderCaps();
 svgClassToggle();
 </script>
 </body>
@@ -534,12 +652,14 @@ def render_html(
     *,
     kill_paths: list[dict[str, Any]] | None = None,
     chokepoints: list[dict[str, Any]] | None = None,
+    capability_table: list[dict[str, Any]] | None = None,
 ) -> Path:
     """Write the graph to a self-contained HTML file.
 
     `kill_paths` and `chokepoints` are optional overlays produced by the
-    Phase-3 search/cut steps. When supplied, the HTML shows a path picker on
-    the right sidebar and highlights the selected path's nodes/edges in red.
+    Phase-3 search/cut steps. `capability_table` is the Base-Model output
+    consumed at injection time; surfacing it lets the user see which CVEs
+    the demo actually knew about.
     """
     payload = _serialise(g)
     html = _TEMPLATE
@@ -547,6 +667,7 @@ def render_html(
     html = html.replace("%%LAYER_LABELS%%", json.dumps(LAYER_LABELS, ensure_ascii=False))
     html = html.replace("%%KILL_PATHS%%",   json.dumps(kill_paths or [],   ensure_ascii=False))
     html = html.replace("%%CHOKEPOINTS%%",  json.dumps(chokepoints or [],  ensure_ascii=False))
+    html = html.replace("%%CAPABILITIES%%", json.dumps(capability_table or [], ensure_ascii=False))
     html = html.replace("%%DEPLOYMENT%%",   payload["deployment"])
     html = html.replace("%%VERSION%%",      payload["version"])
     out = Path(out_path)
