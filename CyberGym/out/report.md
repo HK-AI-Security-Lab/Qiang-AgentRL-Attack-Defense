@@ -67,7 +67,58 @@ Patch / harden these nodes first. `paths_cut` is how many of the kill paths abov
 | 4 | `search_svc` | service | 2 | 37.87 | 0.0174 | 0.1219 |
 | 5 | `postgres-image` | workload | 2 | 43.2 | 0.0169 | 0.1217 |
 
-## 5. Method note
+## 5. How to read `attack_graph.html`
+
+Open it with `.\run.ps1 graph`. Page is split: 5-layer SVG topology on the left, 6 info panels on the right.
+
+### Layers (top to bottom)
+
+| layer | what it represents | how to spot |
+|---|---|---|
+| L0 Entry | `internet` synthetic node, attack origin | red box, very top |
+| L1 Product | business unit (e.g. order system) | green box |
+| L2 Service | microservice / DB | blue box |
+| L3 Workload | container image / firmware | grey box |
+| L4 InfraNode | host / VM | dark grey box, very bottom |
+
+Attackers always enter from the top and try to reach L4. **L4 compromise = host pwn = worst case.**
+
+### Edge colours
+
+| colour | type | meaning |
+|---|---|---|
+| blue solid | NETWORK_REACH | A can reach B over the network |
+| yellow dashed | IAM_BINDING | A has credentials/RBAC to call B |
+| purple dotted | DATA_FLOW | A reads/writes B's data |
+| green dashed | BELONGS_TO | service belongs to product (org link) |
+| grey | RUNS_AS / DEPENDS_ON | service runs as image / image runs on host |
+| **red bold** | **VULN_EXPLOIT** | **CVE lets attacker pivot from A to B** ← the ones that matter |
+
+Without the red edges this is just an asset inventory. The red edges turn it into an *attack graph*.
+
+### Right-side panels
+
+1. **TL;DR headline** (top, red gradient): the one number SOC wants — patch X, kill Y% paths.
+2. **Inventory + Threat Intel stats**: split deliberately. Inventory = what you own. Threat Intel = how many ingested CVEs actually land on it (`applicable to us`) vs are filed-away-but-irrelevant (`not applicable`).
+3. **Top Chokepoints**: nodes ranked by `paths_cut × 0.7 + betweenness × 0.3`. Click a row to highlight the node yellow.
+4. **Capability Table (CVE intel)**: every Base Model output. Each card shows CVE, type, CVSS, post-condition, and how many edges it injected. Cards with `[no match]` are dimmed (no inventory hit). Click an applicable card to highlight every red edge that CVE produced.
+5. **Kill Paths**: live attack chains, ranked. Click a row to dye the whole chain red and dim everything else.
+6. **Selected Node**: click any node in the SVG to see attributes + incident edges.
+
+### Three click modes are mutually exclusive
+
+Clicking a node, a kill path, or a capability each clears the others — so the highlight is always unambiguous. Click the same item again to deselect.
+
+### A 6-step walkthrough
+
+1. Read the **TL;DR** headline (3 seconds): which node should I patch, what's the win.
+2. Glance at **Threat Intel stats**: `applicable to us` tells you how many of the ingested CVEs actually matter.
+3. Open the **Capability Table** panel: applicable CVEs are the red bold cards; each is a real threat.
+4. Click each applicable CVE card one by one to see *which* nodes it lights up red.
+5. Click the top **Kill Path** to see the full attacker chain in red, with everything else dimmed.
+6. Cross-reference with **Top Chokepoints**: the node that appears on the most paths is your patch priority.
+
+## 6. Method note
 
 1. Static baseline (NETWORK_REACH / IAM_BINDING / DATA_FLOW / RUNS_AS / DEPENDS_ON / BELONGS_TO) is loaded from `inventory/sample.yaml`.
 2. Per-CVE capability tables are produced by the **Base Model** (`base_model/translate.py`) — an LLM constrained to a fixed JSON schema with vocabulary `affected_node_type / pre_condition / post_condition / cvss / exploit_maturity / match_hints`.
