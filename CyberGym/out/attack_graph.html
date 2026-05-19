@@ -60,6 +60,28 @@
   }
   .stat-row { display: grid; grid-template-columns: 1fr auto; gap: 4px; font-size: 13px; }
   .stat-row .v { font-family: var(--font); }
+  .stat-row .v.bad  { color: var(--vuln); font-weight: 600; }
+  .stat-row .v.good { color: var(--belong); font-weight: 600; }
+  .stat-row .v.warn { color: var(--high); font-weight: 600; }
+
+  .headline {
+    background: linear-gradient(135deg, rgba(248,81,73,0.10), rgba(210,153,34,0.10));
+    border: 1px solid var(--vuln);
+    border-left: 4px solid var(--vuln);
+    border-radius: 8px; padding: 10px 12px;
+  }
+  .headline-title {
+    font-size: 11px; color: var(--vuln); font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px;
+  }
+  .headline-body {
+    font-size: 13px; color: var(--text); line-height: 1.55;
+  }
+  .headline-body .num { color: var(--vuln); font-weight: 700; font-family: var(--font); }
+  .headline-body code {
+    background: var(--bg); padding: 1px 6px; border-radius: 3px;
+    font-size: 12px; color: var(--high);
+  }
   h2 { font-size: 13px; color: var(--text2); margin: 0 0 6px 0;
        text-transform: uppercase; letter-spacing: 0.5px; }
   .detail-pane {
@@ -160,17 +182,26 @@
     <svg id="svg" viewBox="0 0 1200 760" preserveAspectRatio="xMidYMid meet"></svg>
   </div>
   <aside class="sidebar">
+    <div id="headline" class="headline" style="display:none">
+      <div class="headline-title">Top Recommendation</div>
+      <div class="headline-body" id="headlineBody">-</div>
+    </div>
     <div>
-      <h2>Inventory Stats</h2>
+      <h2>Inventory</h2>
       <div class="stat-row"><span>nodes</span><span class="v" id="sNodes">-</span></div>
-      <div class="stat-row"><span>edges</span><span class="v" id="sEdges">-</span></div>
+      <div class="stat-row"><span>edges (static + vuln)</span><span class="v" id="sEdges">-</span></div>
       <div class="stat-row"><span>products</span><span class="v" id="sProd">-</span></div>
       <div class="stat-row"><span>services</span><span class="v" id="sSvc">-</span></div>
       <div class="stat-row"><span>workloads</span><span class="v" id="sWork">-</span></div>
       <div class="stat-row"><span>infra nodes</span><span class="v" id="sInfra">-</span></div>
-      <div class="stat-row"><span>vuln edges</span><span class="v" id="sVuln">-</span></div>
-      <div class="stat-row"><span>capabilities</span><span class="v" id="sCaps">-</span></div>
-      <div class="stat-row"><span>kill paths</span><span class="v" id="sPaths">-</span></div>
+    </div>
+    <div>
+      <h2>Threat Intel</h2>
+      <div class="stat-row"><span>CVEs ingested</span><span class="v" id="sCaps">-</span></div>
+      <div class="stat-row"><span>applicable to us</span><span class="v" id="sCapsApp">-</span></div>
+      <div class="stat-row"><span>not applicable</span><span class="v" id="sCapsGhost">-</span></div>
+      <div class="stat-row"><span>VULN_EXPLOIT edges</span><span class="v" id="sVuln">-</span></div>
+      <div class="stat-row"><span>kill paths</span><span class="v bad" id="sPaths">-</span></div>
     </div>
     <div id="chokeBox" style="display:none">
       <h2>Top Chokepoints</h2>
@@ -357,9 +388,52 @@ function renderStats() {
   document.getElementById('sSvc').textContent   = counts.service;
   document.getElementById('sWork').textContent  = counts.workload;
   document.getElementById('sInfra').textContent = counts.infra_node;
-  document.getElementById('sVuln').textContent  = PAYLOAD.edges.filter(e => e.type === 'VULN_EXPLOIT').length;
+
+  // Threat intel: how many CVEs actually landed on our inventory?
+  const edgeCountByKey = capabilityEdgeCounts();
+  let applicable = 0, ghost = 0;
+  for (const cap of CAPABILITIES) {
+    if ((edgeCountByKey[cap.task_id] || 0) > 0) applicable++;
+    else ghost++;
+  }
+  const vulnEdges = PAYLOAD.edges.filter(e => e.type === 'VULN_EXPLOIT').length;
+
+  document.getElementById('sVuln').textContent  = vulnEdges;
   document.getElementById('sCaps').textContent  = CAPABILITIES.length;
-  document.getElementById('sPaths').textContent = KILL_PATHS.length;
+  // Format: "<applicable> / <total>"
+  const capsAppEl = document.getElementById('sCapsApp');
+  capsAppEl.textContent = applicable + ' / ' + CAPABILITIES.length;
+  capsAppEl.className = 'v ' + (applicable > 0 ? 'bad' : 'good');
+  document.getElementById('sCapsGhost').textContent = ghost;
+
+  const pathsEl = document.getElementById('sPaths');
+  pathsEl.textContent = KILL_PATHS.length;
+  pathsEl.className = 'v ' + (KILL_PATHS.length > 0 ? 'bad' : 'good');
+}
+
+function capabilityEdgeCounts() {
+  const out = {};
+  for (const e of PAYLOAD.edges) {
+    if (e.type !== 'VULN_EXPLOIT') continue;
+    const k = e.task_id || e.cve_id;
+    if (k) out[k] = (out[k] || 0) + 1;
+  }
+  return out;
+}
+
+function renderHeadline() {
+  const top = CHOKEPOINTS[0];
+  if (!top || !KILL_PATHS.length) return;
+  const total = KILL_PATHS.length;
+  const cut   = top.paths_cut;
+  const pct   = Math.round((cut / total) * 100);
+  const body  = document.getElementById('headlineBody');
+  body.innerHTML =
+    'Patch <code>' + escHtml(top.label) + '</code> ' +
+    '(' + escHtml(top.kind) + ') first &mdash; it sits on ' +
+    '<span class="num">' + cut + ' / ' + total + '</span> live kill paths ' +
+    '(<span class="num">' + pct + '%</span> attack-surface reduction).';
+  document.getElementById('headline').style.display = '';
 }
 
 function renderCaps() {
@@ -367,13 +441,7 @@ function renderCaps() {
   document.getElementById('capBox').style.display = '';
   const list = document.getElementById('caps');
   list.innerHTML = '';
-  // Count how many VULN_EXPLOIT edges each capability produced.
-  const edgeCount = {};
-  for (const e of PAYLOAD.edges) {
-    if (e.type !== 'VULN_EXPLOIT') continue;
-    const k = e.task_id || e.cve_id;
-    if (k) edgeCount[k] = (edgeCount[k] || 0) + 1;
-  }
+  const edgeCount = capabilityEdgeCounts();
   CAPABILITIES.forEach(cap => {
     const key   = cap.task_id;
     const count = edgeCount[key] || 0;
@@ -547,6 +615,7 @@ renderStats();
 renderPaths();
 renderChokes();
 renderCaps();
+renderHeadline();
 svgClassToggle();
 </script>
 </body>
