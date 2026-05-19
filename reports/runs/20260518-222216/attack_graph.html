@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AutoPatch-RL Kill Chain</title>
+<style>
+  :root {
+    --bg: #0d1117; --card: #161b22; --card2: #1c2128; --border: #30363d;
+    --red: #f85149; --red-bg: rgba(248,81,73,0.18);
+    --green: #3fb950; --green-bg: rgba(63,185,80,0.18);
+    --yellow: #d29922; --yellow-bg: rgba(210,153,34,0.18);
+    --blue: #58a6ff; --blue-bg: rgba(88,166,255,0.18);
+    --gray: #6e7681;
+    --text: #c9d1d9; --text2: #8b949e; --text3: #6e7681;
+    --font: 'SF Mono', 'JetBrains Mono', 'Cascadia Code', monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    min-height: 100vh; display: flex; flex-direction: column;
+  }
+  header {
+    padding: 14px 22px; border-bottom: 1px solid var(--border);
+    background: var(--card); display: flex; align-items: center;
+    justify-content: space-between;
+  }
+  header h1 { margin: 0; font-size: 18px; font-weight: 600; }
+  header .meta { color: var(--text2); font-size: 13px; font-family: var(--font); }
+  .nav {
+    padding: 12px 22px; background: var(--card2);
+    border-bottom: 1px solid var(--border);
+    display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+  }
+  .nav button {
+    background: var(--card); color: var(--text); border: 1px solid var(--border);
+    padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px;
+  }
+  .nav button:hover { background: var(--border); }
+  .nav button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .round-label { font-family: var(--font); color: var(--text); min-width: 110px; }
+  .slider-wrap { flex: 1; display: flex; align-items: center; gap: 12px; min-width: 200px; }
+  input[type=range] { flex: 1; }
+  .legend { display: flex; gap: 14px; font-size: 12px; color: var(--text2); flex-wrap: wrap; }
+  .legend .chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 12px; }
+  .legend .chip span.swatch {
+    width: 18px; height: 4px; border-radius: 2px; display: inline-block;
+  }
+  main {
+    flex: 1; display: grid; grid-template-columns: minmax(0,1fr) 360px;
+    gap: 16px; padding: 16px 22px;
+  }
+  .graph {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px; min-height: 720px;
+    position: relative; overflow: auto;
+  }
+  .graph svg { width: 100%; height: 100%; min-height: 700px; }
+  .layer-label {
+    position: absolute; left: 22px; color: var(--text3);
+    font-family: var(--font); font-size: 11px; pointer-events: none;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .sidebar {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px;
+    display: flex; flex-direction: column; gap: 14px;
+    max-height: calc(100vh - 200px); overflow-y: auto;
+  }
+  .stat-row { display: grid; grid-template-columns: 1fr auto; gap: 4px; font-size: 13px; }
+  .stat-row .v { font-family: var(--font); }
+  .stat-row .v.bad  { color: var(--red); }
+  .stat-row .v.good { color: var(--green); }
+  h2 {
+    font-size: 13px; color: var(--text2); margin: 0 0 6px 0;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .rationale {
+    background: var(--card2); padding: 10px 12px; border-radius: 8px;
+    font-size: 12px; line-height: 1.55; white-space: pre-wrap;
+    border: 1px solid var(--border); max-height: 200px; overflow-y: auto;
+  }
+  .path-list { display: flex; flex-direction: column; gap: 6px; }
+  .path {
+    font-family: var(--font); font-size: 11px;
+    padding: 6px 10px; border-radius: 6px;
+    background: var(--red-bg); color: var(--text); border-left: 3px solid var(--red);
+    word-break: break-word;
+  }
+  .edges-section h2 { margin-top: 8px; }
+  .edge-list { display: flex; flex-direction: column; gap: 4px; max-height: 260px; overflow-y: auto; }
+  .edge-item {
+    font-size: 11px; font-family: var(--font);
+    padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border);
+    background: var(--card2);
+  }
+  .edge-item.bypassed   { color: var(--red); border-left: 3px solid var(--red); }
+  .edge-item.reachable  { color: var(--yellow); border-left: 3px solid var(--yellow); }
+  .edge-item.severed    { color: var(--green); border-left: 3px solid var(--green); }
+  .edge-item.blocked    { color: var(--text2); }
+
+  /* SVG */
+  .node-box rect { rx: 8; ry: 8; stroke-width: 2; transition: all 0.2s; }
+  .node-box.compromised rect { fill: var(--red-bg); stroke: var(--red); }
+  .node-box.safe         rect { fill: var(--card2);  stroke: var(--border); }
+  .node-box text { fill: var(--text); font-family: var(--font); font-size: 12px; }
+  .node-box .desc { fill: var(--text2); font-size: 10px; }
+
+  .edge { fill: none; stroke-width: 1.6; opacity: 0.85; transition: opacity 0.2s; }
+  .edge.bypassed   { stroke: var(--red);    stroke-width: 2.6; }
+  .edge.reachable  { stroke: var(--yellow); stroke-width: 2; stroke-dasharray: 6 3; }
+  .edge.severed    { stroke: var(--green);  stroke-width: 2; }
+  .edge.blocked    { stroke: var(--gray);   stroke-width: 1; stroke-dasharray: 3 4; opacity: 0.35; }
+  .edge.unreachable{ stroke: var(--gray);   stroke-width: 1; opacity: 0.18; }
+  .edge.regressed       { filter: drop-shadow(0 0 4px var(--red));    }
+  .edge.novel-severance { filter: drop-shadow(0 0 4px var(--green));  }
+  .edge:hover { opacity: 1; stroke-width: 4; }
+  .layer-divider { stroke: var(--border); stroke-dasharray: 2 4; }
+
+  footer { padding: 12px 22px; color: var(--text3); font-size: 11px;
+           text-align: center; border-top: 1px solid var(--border); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>AutoPatch-RL · Kill Chain</h1>
+  <div class="meta">run: 20260518-222216 · rounds: 4</div>
+</header>
+
+<div class="nav">
+  <button id="prevBtn">&larr; Prev</button>
+  <div class="round-label" id="roundLabel">Round 0</div>
+  <div class="slider-wrap">
+    <input type="range" id="slider" min="0" max="0" value="0" step="1">
+  </div>
+  <button id="nextBtn">Next &rarr;</button>
+  <div class="legend">
+    <span class="chip"><span class="swatch" style="background:var(--red)"></span>bypassed (probe-confirmed)</span>
+    <span class="chip"><span class="swatch" style="background:var(--yellow)"></span>reachable (no defence)</span>
+    <span class="chip"><span class="swatch" style="background:var(--green)"></span>severed (cut by policy)</span>
+    <span class="chip"><span class="swatch" style="background:var(--gray)"></span>blocked / unreachable</span>
+  </div>
+</div>
+
+<main>
+  <div class="graph">
+    <svg id="svg" viewBox="0 0 1100 760" preserveAspectRatio="xMidYMid meet"></svg>
+  </div>
+  <aside class="sidebar">
+    <div>
+      <h2>Round Stats</h2>
+      <div class="stat-row"><span>iteration</span><span class="v" id="sIter">-</span></div>
+      <div class="stat-row"><span>score</span><span class="v" id="sScore">-</span></div>
+      <div class="stat-row"><span>host owned</span><span class="v" id="sHost">-</span></div>
+      <div class="stat-row"><span>bypassed edges</span><span class="v bad" id="sBypass">-</span></div>
+      <div class="stat-row"><span>reachable edges</span><span class="v" id="sReach">-</span></div>
+      <div class="stat-row"><span>severed edges</span><span class="v good" id="sSever">-</span></div>
+      <div class="stat-row"><span>L2 caps reached</span><span class="v" id="sCaps">-</span></div>
+    </div>
+    <div>
+      <h2>Live Kill Paths to Host</h2>
+      <div class="path-list" id="paths"></div>
+    </div>
+    <div>
+      <h2>Agent Rationale</h2>
+      <div class="rationale" id="rationale">(no rationale)</div>
+    </div>
+    <div class="edges-section">
+      <h2>Live Edges</h2>
+      <div class="edge-list" id="edgeList"></div>
+    </div>
+  </aside>
+</main>
+
+<footer>Generated by AutoPatch-RL · attack_graph.html (kill-chain)</footer>
+
+<script>
+const ROUNDS = [{"iteration": 0, "nodes": [{"id": "ia_ping", "layer": 1, "label": "POST /ping", "description": "Command Injection (CWE-78)"}, {"id": "ia_fetch", "layer": 1, "label": "GET /fetch", "description": "SSRF (CWE-918)"}, {"id": "ia_read", "layer": 1, "label": "GET /read", "description": "Path Traversal (CWE-22)"}, {"id": "ia_search", "layer": 1, "label": "GET /search", "description": "SQL Injection (CWE-89)"}, {"id": "ia_render", "layer": 1, "label": "POST /render", "description": "SSTI (CWE-1336)"}, {"id": "ia_load", "layer": 1, "label": "POST /load", "description": "Insecure Deserialization (CWE-502)"}, {"id": "cap_shell_exec", "layer": 2, "label": "Shell exec (root)", "description": "Arbitrary command execution as container root"}, {"id": "cap_http_egress", "layer": 2, "label": "HTTP egress", "description": "Server-side HTTP requests on attacker's behalf"}, {"id": "cap_file_read", "layer": 2, "label": "File read", "description": "Arbitrary path read inside container"}, {"id": "cap_db_read", "layer": 2, "label": "DB read", "description": "Read /tmp/demo.db (incl. secrets table)"}, {"id": "cap_python_eval", "layer": 2, "label": "Python eval", "description": "Code execution in Jinja2 / app context"}, {"id": "cap_pickle_rce", "layer": 2, "label": "Pickle RCE", "description": "Deserialize attacker-controlled object"}, {"id": "cc_read_shadow", "layer": 3, "label": "Read /etc/shadow", "description": "Sensitive file read; needs root"}, {"id": "cc_read_kallsyms", "layer": 3, "label": "Leak kernel addrs", "description": "Read /proc/kallsyms"}, {"id": "cc_create_userns", "layer": 3, "label": "Create userns", "description": "unshare -U"}, {"id": "cc_read_host", "layer": 3, "label": "Read /host root", "description": "Host filesystem accessible via bind mount"}, {"id": "cc_docker_sock", "layer": 3, "label": "Talk docker.sock", "description": "Reach Docker daemon API"}, {"id": "cc_metadata_ssrf", "layer": 3, "label": "Cloud metadata", "description": "Reach 169.254.169.254 / IMDS via SSRF"}, {"id": "esc_chroot_host", "layer": 4, "label": "chroot to /host", "description": "Run binaries from host root"}, {"id": "esc_docker_sock_rce", "layer": 4, "label": "docker.sock RCE", "description": "Spawn privileged container"}, {"id": "esc_kernel_exploit", "layer": 4, "label": "Kernel exploit", "description": "kallsyms + userns -> kernel code exec"}, {"id": "esc_sysadmin_escape", "layer": 4, "label": "SYS_ADMIN escape", "description": "CAP_SYS_ADMIN allows mounting host fs"}, {"id": "host_owned", "layer": 5, "label": "Host compromised", "description": "Attacker has shell on host / cluster"}], "edges": [{"source": "ia_ping", "target": "cap_shell_exec", "label": "shell metachar injection", "severance_label": "app_waf blocks shell metachars", "empirical": "red_cmd_injection", "requires": [], "origin": "empirical", "status": "bypassed", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "ia_fetch", "target": "cap_http_egress", "label": "fetch attacker URL", "severance_label": "ssrf_allowed_hosts excludes loopback", "empirical": "red_ssrf", "requires": [], "origin": "empirical", "status": "bypassed", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "ia_read", "target": "cap_file_read", "label": "../ traversal", "severance_label": "path_traversal_block: true", "empirical": "red_path_traversal", "requires": [], "origin": "empirical", "status": "bypassed", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "ia_search", "target": "cap_db_read", "label": "UNION SELECT", "severance_label": "sqli_parameterized: true", "empirical": "red_sqli", "requires": [], "origin": "empirical", "status": "bypassed", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "ia_render", "target": "cap_python_eval", "label": "__class__ chain", "severance_label": "ssti_sandbox: true", "empirical": "red_ssti", "requires": [], "origin": "empirical", "status": "bypassed", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "ia_load", "target": "cap_pickle_rce", "label": "pickle.loads", "severance_label": "pickle_disabled / endpoint disabled", "empirical": "red_deserialization", "requires": [], "origin": "empirical", "status": "blocked", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_shell_exec", "target": "cc_read_shadow", "label": "cat /etc/shadow", "severance_label": "run_as_non_root: true", "empirical": null, "requires": [], "origin": "default", "status": "reachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_shell_exec", "target": "cc_read_kallsyms", "label": "cat /proc/kallsyms", "severance_label": "seccomp RuntimeDefault zeroes addrs", "empirical": "probe_proc_kallsyms", "requires": [], "origin": "empirical", "status": "blocked", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_shell_exec", "target": "cc_create_userns", "label": "unshare -U", "severance_label": "seccomp RuntimeDefault blocks", "empirical": "probe_userns", "requires": [], "origin": "empirical", "status": "bypassed", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_shell_exec", "target": "cc_read_host", "label": "ls /host", "severance_label": "no /host bind mount", "empirical": "probe_host_mount", "requires": [], "origin": "empirical", "status": "blocked", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_shell_exec", "target": "cc_docker_sock", "label": "curl --unix-socket docker.sock", "severance_label": "no docker.sock bind mount", "empirical": "probe_docker_sock", "requires": [], "origin": "empirical", "status": "blocked", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_pickle_rce", "target": "cc_read_shadow", "label": "subprocess via gadget", "severance_label": "run_as_non_root: true", "empirical": null, "requires": [], "origin": "default", "status": "unreachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_pickle_rce", "target": "cc_read_kallsyms", "label": "subprocess via gadget", "severance_label": "seccomp RuntimeDefault", "empirical": null, "requires": [], "origin": "default", "status": "unreachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_pickle_rce", "target": "cc_create_userns", "label": "subprocess via gadget", "severance_label": "seccomp RuntimeDefault", "empirical": null, "requires": [], "origin": "default", "status": "unreachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_python_eval", "target": "cc_read_shadow", "label": "os.popen via __globals__", "severance_label": "run_as_non_root: true", "empirical": null, "requires": [], "origin": "default", "status": "reachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_file_read", "target": "cc_read_shadow", "label": "read /etc/passwd", "severance_label": "no policy lever (file_read = file_read)", "empirical": null, "requires": [], "origin": "default", "status": "reachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_http_egress", "target": "cc_metadata_ssrf", "label": "GET 169.254.169.254", "severance_label": "ssrf allowlist (excludes IMDS)", "empirical": null, "requires": [], "origin": "default", "status": "reachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cc_read_host", "target": "esc_chroot_host", "label": "chroot /host /bin/bash", "severance_label": "trivial once host fs visible", "empirical": null, "requires": [], "origin": "default", "status": "unreachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cc_docker_sock", "target": "esc_docker_sock_rce", "label": "POST /containers/create privileged=true", "severance_label": "trivial once socket reachable", "empirical": null, "requires": [], "origin": "default", "status": "unreachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cc_read_kallsyms", "target": "esc_kernel_exploit", "label": "kernel ROP gadget chain", "severance_label": "kallsyms + userns suffice", "empirical": null, "requires": ["cc_create_userns"], "origin": "default", "status": "unreachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_shell_exec", "target": "esc_sysadmin_escape", "label": "mount -t proc / /mnt", "severance_label": "SYS_ADMIN dropped", "empirical": null, "requires": [], "origin": "default", "status": "reachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "esc_chroot_host", "target": "host_owned", "label": "host shell", "severance_label": "", "empirical": null, "requires": [], "origin": "default", "status": "unreachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "esc_docker_sock_rce", "target": "host_owned", "label": "host shell", "severance_label": "", "empirical": null, "requires": [], "origin": "default", "status": "unreachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "esc_kernel_exploit", "target": "host_owned", "label": "host shell", "severance_label": "", "empirical": null, "requires": [], "origin": "default", "status": "unreachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "esc_sysadmin_escape", "target": "host_owned", "label": "host shell", "severance_label": "", "empirical": null, "requires": [], "origin": "default", "status": "reachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}], "node_reachable": {"ia_ping": true, "ia_fetch": true, "ia_read": true, "ia_search": true, "ia_render": true, "ia_load": true, "cap_shell_exec": true, "cap_http_egress": true, "cap_file_read": true, "cap_db_read": true, "cap_python_eval": true, "cap_pickle_rce": false, "cc_read_shadow": true, "cc_read_kallsyms": false, "cc_create_userns": true, "cc_read_host": false, "cc_docker_sock": false, "cc_metadata_ssrf": true, "esc_chroot_host": false, "esc_docker_sock_rce": false, "esc_kernel_exploit": false, "esc_sysadmin_escape": true, "host_owned": true}, "stats": {"bypassed_edges": 6, "severed_edges": 0, "reachable_edges": 12, "host_owned": true, "compromised_l2_capabilities": 5}, "kill_paths": [["ia_ping", "cap_shell_exec", "esc_sysadmin_escape", "host_owned"]], "score": -460, "rationale": "Realistic baseline misconfiguration. Operator added SYS_ADMIN \"for a\n    debugging tool\", disabled seccomp \"to debug a crash\", bind-mounted host /\n    \"for log forwarding\", and exposed docker.sock \"for sidecar deployment\".\n    App runs as root, no WAF. This is the starting state the agent must harden\n    without breaking the regression suite."}, {"iteration": 1, "nodes": [{"id": "ia_ping", "layer": 1, "label": "POST /ping", "description": "Command Injection (CWE-78)"}, {"id": "ia_fetch", "layer": 1, "label": "GET /fetch", "description": "SSRF (CWE-918)"}, {"id": "ia_read", "layer": 1, "label": "GET /read", "description": "Path Traversal (CWE-22)"}, {"id": "ia_search", "layer": 1, "label": "GET /search", "description": "SQL Injection (CWE-89)"}, {"id": "ia_render", "layer": 1, "label": "POST /render", "description": "SSTI (CWE-1336)"}, {"id": "ia_load", "layer": 1, "label": "POST /load", "description": "Insecure Deserialization (CWE-502)"}, {"id": "cap_shell_exec", "layer": 2, "label": "Shell exec (root)", "description": "Arbitrary command execution as container root"}, {"id": "cap_http_egress", "layer": 2, "label": "HTTP egress", "description": "Server-side HTTP requests on attacker's behalf"}, {"id": "cap_file_read", "layer": 2, "label": "File read", "description": "Arbitrary path read inside container"}, {"id": "cap_db_read", "layer": 2, "label": "DB read", "description": "Read /tmp/demo.db (incl. secrets table)"}, {"id": "cap_python_eval", "layer": 2, "label": "Python eval", "description": "Code execution in Jinja2 / app context"}, {"id": "cap_pickle_rce", "layer": 2, "label": "Pickle RCE", "description": "Deserialize attacker-controlled object"}, {"id": "cc_read_shadow", "layer": 3, "label": "Read /etc/shadow", "description": "Sensitive file read; needs root"}, {"id": "cc_read_kallsyms", "layer": 3, "label": "Leak kernel addrs", "description": "Read /proc/kallsyms"}, {"id": "cc_create_userns", "layer": 3, "label": "Create userns", "description": "unshare -U"}, {"id": "cc_read_host", "layer": 3, "label": "Read /host root", "description": "Host filesystem accessible via bind mount"}, {"id": "cc_docker_sock", "layer": 3, "label": "Talk docker.sock", "description": "Reach Docker daemon API"}, {"id": "cc_metadata_ssrf", "layer": 3, "label": "Cloud metadata", "description": "Reach 169.254.169.254 / IMDS via SSRF"}, {"id": "esc_chroot_host", "layer": 4, "label": "chroot to /host", "description": "Run binaries from host root"}, {"id": "esc_docker_sock_rce", "layer": 4, "label": "docker.sock RCE", "description": "Spawn privileged container"}, {"id": "esc_kernel_exploit", "layer": 4, "label": "Kernel exploit", "description": "kallsyms + userns -> kernel code exec"}, {"id": "esc_sysadmin_escape", "layer": 4, "label": "SYS_ADMIN escape", "description": "CAP_SYS_ADMIN allows mounting host fs"}, {"id": "host_owned", "layer": 5, "label": "Host compromised", "description": "Attacker has shell on host / cluster"}], "edges": [{"source": "ia_ping", "target": "cap_shell_exec", "label": "shell metachar injection", "severance_label": "app_waf blocks shell metachars", "empirical": "red_cmd_injection", "requires": [], "origin": "empirical", "status": "bypassed", "was_bypassed_before": true, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "ia_fetch", "target": "cap_http_egress", "label": "fetch attacker URL", "severance_label": "ssrf_allowed_hosts excludes loopback", "empirical": "red_ssrf", "requires": [], "origin": "empirical", "status": "bypassed", "was_bypassed_before": true, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "ia_read", "target": "cap_file_read", "label": "../ traversal", "severance_label": "path_traversal_block: true", "empirical": "red_path_traversal", "requires": [], "origin": "empirical", "status": "bypassed", "was_bypassed_before": true, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "ia_search", "target": "cap_db_read", "label": "UNION SELECT", "severance_label": "sqli_parameterized: true", "empirical": "red_sqli", "requires": [], "origin": "empirical", "status": "bypassed", "was_bypassed_before": true, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "ia_render", "target": "cap_python_eval", "label": "__class__ chain", "severance_label": "ssti_sandbox: true", "empirical": "red_ssti", "requires": [], "origin": "empirical", "status": "bypassed", "was_bypassed_before": true, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "ia_load", "target": "cap_pickle_rce", "label": "pickle.loads", "severance_label": "pickle_disabled / endpoint disabled", "empirical": "red_deserialization", "requires": [], "origin": "empirical", "status": "blocked", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_shell_exec", "target": "cc_read_shadow", "label": "cat /etc/shadow", "severance_label": "run_as_non_root: true", "empirical": null, "requires": [], "origin": "default", "status": "reachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_shell_exec", "target": "cc_read_kallsyms", "label": "cat /proc/kallsyms", "severance_label": "seccomp RuntimeDefault zeroes addrs", "empirical": "probe_proc_kallsyms", "requires": [], "origin": "empirical", "status": "blocked", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_shell_exec", "target": "cc_create_userns", "label": "unshare -U", "severance_label": "seccomp RuntimeDefault blocks", "empirical": "probe_userns", "requires": [], "origin": "empirical", "status": "blocked", "was_bypassed_before": true, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_shell_exec", "target": "cc_read_host", "label": "ls /host", "severance_label": "no /host bind mount", "empirical": "probe_host_mount", "requires": [], "origin": "empirical", "status": "blocked", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_shell_exec", "target": "cc_docker_sock", "label": "curl --unix-socket docker.sock", "severance_label": "no docker.sock bind mount", "empirical": "probe_docker_sock", "requires": [], "origin": "empirical", "status": "blocked", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_pickle_rce", "target": "cc_read_shadow", "label": "subprocess via gadget", "severance_label": "run_as_non_root: true", "empirical": null, "requires": [], "origin": "default", "status": "unreachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_pickle_rce", "target": "cc_read_kallsyms", "label": "subprocess via gadget", "severance_label": "seccomp RuntimeDefault", "empirical": null, "requires": [], "origin": "policy", "status": "severed", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": true, "regressed": false}, {"source": "cap_pickle_rce", "target": "cc_create_userns", "label": "subprocess via gadget", "severance_label": "seccomp RuntimeDefault", "empirical": null, "requires": [], "origin": "policy", "status": "severed", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": true, "regressed": false}, {"source": "cap_python_eval", "target": "cc_read_shadow", "label": "os.popen via __globals__", "severance_label": "run_as_non_root: true", "empirical": null, "requires": [], "origin": "default", "status": "reachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_file_read", "target": "cc_read_shadow", "label": "read /etc/passwd", "severance_label": "no policy lever (file_read = file_read)", "empirical": null, "requires": [], "origin": "default", "status": "reachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_http_egress", "target": "cc_metadata_ssrf", "label": "GET 169.254.169.254", "severance_label": "ssrf allowlist (excludes IMDS)", "empirical": null, "requires": [], "origin": "policy", "status": "severed", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": true, "regressed": false}, {"source": "cc_read_host", "target": "esc_chroot_host", "label": "chroot /host /bin/bash", "severance_label": "trivial once host fs visible", "empirical": null, "requires": [], "origin": "default", "status": "unreachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cc_docker_sock", "target": "esc_docker_sock_rce", "label": "POST /containers/create privileged=true", "severance_label": "trivial once socket reachable", "empirical": null, "requires": [], "origin": "default", "status": "unreachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cc_read_kallsyms", "target": "esc_kernel_exploit", "label": "kernel ROP gadget chain", "severance_label": "kallsyms + userns suffice", "empirical": null, "requires": ["cc_create_userns"], "origin": "default", "status": "unreachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_shell_exec", "target": "esc_sysadmin_escape", "label": "mount -t proc / /mnt", "severance_label": "SYS_ADMIN dropped", "empirical": null, "requires": [], "origin": "policy", "status": "severed", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": true, "regressed": false}, {"source": "esc_chroot_host", "target": "host_owned", "label": "host shell", "severance_label": "", "empirical": null, "requires": [], "origin": "default", "status": "unreachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "esc_docker_sock_rce", "target": "host_owned", "label": "host shell", "severance_label": "", "empirical": null, "requires": [], "origin": "default", "status": "unreachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "esc_kernel_exploit", "target": "host_owned", "label": "host shell", "severance_label": "", "empirical": null, "requires": [], "origin": "default", "status": "unreachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "esc_sysadmin_escape", "target": "host_owned", "label": "host shell", "severance_label": "", "empirical": null, "requires": [], "origin": "default", "status": "unreachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}], "node_reachable": {"ia_ping": true, "ia_fetch": true, "ia_read": true, "ia_search": true, "ia_render": true, "ia_load": true, "cap_shell_exec": true, "cap_http_egress": true, "cap_file_read": true, "cap_db_read": true, "cap_python_eval": true, "cap_pickle_rce": false, "cc_read_shadow": true, "cc_read_kallsyms": false, "cc_create_userns": false, "cc_read_host": false, "cc_docker_sock": false, "cc_metadata_ssrf": false, "esc_chroot_host": false, "esc_docker_sock_rce": false, "esc_kernel_exploit": false, "esc_sysadmin_escape": false, "host_owned": false}, "stats": {"bypassed_edges": 5, "severed_edges": 4, "reachable_edges": 8, "host_owned": false, "compromised_l2_capabilities": 5}, "kill_paths": [], "score": -380, "rationale": "The most critical vulnerability remaining is the container escape path\n    via sysadmin privileges and host mount access, which allows the container to pivot\n    to the host. To mitigate this, I disabled privilege escalation (`allow_privilege_escalation:\n    false`) and set `no_new_privileges: true` to limit privilege escalation within\n    the container. Additionally, I removed capabilities including `SYS_ADMIN`, and\n    severed the mounts to /host by removing bind mounts to prevent read/write access\n    to the host filesystem, which is central to the container escape vectors. Lastly,\n    I set `app_waf.enabled` to false but added specific SSRF allowlist entries for\n    localhost and the Docker internal host to prevent internal network SSRF paths.\n    These adjustments should significantly restrict the most severe attack paths while\n    maintaining baseline operability."}, {"iteration": 2, "nodes": [{"id": "ia_ping", "layer": 1, "label": "POST /ping", "description": "Command Injection (CWE-78)"}, {"id": "ia_fetch", "layer": 1, "label": "GET /fetch", "description": "SSRF (CWE-918)"}, {"id": "ia_read", "layer": 1, "label": "GET /read", "description": "Path Traversal (CWE-22)"}, {"id": "ia_search", "layer": 1, "label": "GET /search", "description": "SQL Injection (CWE-89)"}, {"id": "ia_render", "layer": 1, "label": "POST /render", "description": "SSTI (CWE-1336)"}, {"id": "ia_load", "layer": 1, "label": "POST /load", "description": "Insecure Deserialization (CWE-502)"}, {"id": "cap_shell_exec", "layer": 2, "label": "Shell exec (root)", "description": "Arbitrary command execution as container root"}, {"id": "cap_http_egress", "layer": 2, "label": "HTTP egress", "description": "Server-side HTTP requests on attacker's behalf"}, {"id": "cap_file_read", "layer": 2, "label": "File read", "description": "Arbitrary path read inside container"}, {"id": "cap_db_read", "layer": 2, "label": "DB read", "description": "Read /tmp/demo.db (incl. secrets table)"}, {"id": "cap_python_eval", "layer": 2, "label": "Python eval", "description": "Code execution in Jinja2 / app context"}, {"id": "cap_pickle_rce", "layer": 2, "label": "Pickle RCE", "description": "Deserialize attacker-controlled object"}, {"id": "cc_read_shadow", "layer": 3, "label": "Read /etc/shadow", "description": "Sensitive file read; needs root"}, {"id": "cc_read_kallsyms", "layer": 3, "label": "Leak kernel addrs", "description": "Read /proc/kallsyms"}, {"id": "cc_create_userns", "layer": 3, "label": "Create userns", "description": "unshare -U"}, {"id": "cc_read_host", "layer": 3, "label": "Read /host root", "description": "Host filesystem accessible via bind mount"}, {"id": "cc_docker_sock", "layer": 3, "label": "Talk docker.sock", "description": "Reach Docker daemon API"}, {"id": "cc_metadata_ssrf", "layer": 3, "label": "Cloud metadata", "description": "Reach 169.254.169.254 / IMDS via SSRF"}, {"id": "esc_chroot_host", "layer": 4, "label": "chroot to /host", "description": "Run binaries from host root"}, {"id": "esc_docker_sock_rce", "layer": 4, "label": "docker.sock RCE", "description": "Spawn privileged container"}, {"id": "esc_kernel_exploit", "layer": 4, "label": "Kernel exploit", "description": "kallsyms + userns -> kernel code exec"}, {"id": "esc_sysadmin_escape", "layer": 4, "label": "SYS_ADMIN escape", "description": "CAP_SYS_ADMIN allows mounting host fs"}, {"id": "host_owned", "layer": 5, "label": "Host compromised", "description": "Attacker has shell on host / cluster"}], "edges": [{"source": "ia_ping", "target": "cap_shell_exec", "label": "shell metachar injection", "severance_label": "app_waf blocks shell metachars", "empirical": "red_cmd_injection", "requires": [], "origin": "empirical", "status": "bypassed", "was_bypassed_before": true, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "ia_fetch", "target": "cap_http_egress", "label": "fetch attacker URL", "severance_label": "ssrf_allowed_hosts excludes loopback", "empirical": "red_ssrf", "requires": [], "origin": "empirical", "status": "bypassed", "was_bypassed_before": true, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "ia_read", "target": "cap_file_read", "label": "../ traversal", "severance_label": "path_traversal_block: true", "empirical": "red_path_traversal", "requires": [], "origin": "empirical", "status": "bypassed", "was_bypassed_before": true, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "ia_search", "target": "cap_db_read", "label": "UNION SELECT", "severance_label": "sqli_parameterized: true", "empirical": "red_sqli", "requires": [], "origin": "empirical", "status": "bypassed", "was_bypassed_before": true, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "ia_render", "target": "cap_python_eval", "label": "__class__ chain", "severance_label": "ssti_sandbox: true", "empirical": "red_ssti", "requires": [], "origin": "empirical", "status": "bypassed", "was_bypassed_before": true, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "ia_load", "target": "cap_pickle_rce", "label": "pickle.loads", "severance_label": "pickle_disabled / endpoint disabled", "empirical": "red_deserialization", "requires": [], "origin": "empirical", "status": "blocked", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_shell_exec", "target": "cc_read_shadow", "label": "cat /etc/shadow", "severance_label": "run_as_non_root: true", "empirical": null, "requires": [], "origin": "default", "status": "reachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_shell_exec", "target": "cc_read_kallsyms", "label": "cat /proc/kallsyms", "severance_label": "seccomp RuntimeDefault zeroes addrs", "empirical": "probe_proc_kallsyms", "requires": [], "origin": "empirical", "status": "blocked", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_shell_exec", "target": "cc_create_userns", "label": "unshare -U", "severance_label": "seccomp RuntimeDefault blocks", "empirical": "probe_userns", "requires": [], "origin": "empirical", "status": "blocked", "was_bypassed_before": true, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_shell_exec", "target": "cc_read_host", "label": "ls /host", "severance_label": "no /host bind mount", "empirical": "probe_host_mount", "requires": [], "origin": "empirical", "status": "blocked", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_shell_exec", "target": "cc_docker_sock", "label": "curl --unix-socket docker.sock", "severance_label": "no docker.sock bind mount", "empirical": "probe_docker_sock", "requires": [], "origin": "empirical", "status": "blocked", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_pickle_rce", "target": "cc_read_shadow", "label": "subprocess via gadget", "severance_label": "run_as_non_root: true", "empirical": null, "requires": [], "origin": "default", "status": "unreachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_pickle_rce", "target": "cc_read_kallsyms", "label": "subprocess via gadget", "severance_label": "seccomp RuntimeDefault", "empirical": null, "requires": [], "origin": "policy", "status": "severed", "was_bypassed_before": false, "was_severed_before": true, "novel_severance": false, "regressed": false}, {"source": "cap_pickle_rce", "target": "cc_create_userns", "label": "subprocess via gadget", "severance_label": "seccomp RuntimeDefault", "empirical": null, "requires": [], "origin": "policy", "status": "severed", "was_bypassed_before": false, "was_severed_before": true, "novel_severance": false, "regressed": false}, {"source": "cap_python_eval", "target": "cc_read_shadow", "label": "os.popen via __globals__", "severance_label": "run_as_non_root: true", "empirical": null, "requires": [], "origin": "default", "status": "reachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_file_read", "target": "cc_read_shadow", "label": "read /etc/passwd", "severance_label": "no policy lever (file_read = file_read)", "empirical": null, "requires": [], "origin": "default", "status": "reachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_http_egress", "target": "cc_metadata_ssrf", "label": "GET 169.254.169.254", "severance_label": "ssrf allowlist (excludes IMDS)", "empirical": null, "requires": [], "origin": "policy", "status": "severed", "was_bypassed_before": false, "was_severed_before": true, "novel_severance": false, "regressed": false}, {"source": "cc_read_host", "target": "esc_chroot_host", "label": "chroot /host /bin/bash", "severance_label": "trivial once host fs visible", "empirical": null, "requires": [], "origin": "default", "status": "unreachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cc_docker_sock", "target": "esc_docker_sock_rce", "label": "POST /containers/create privileged=true", "severance_label": "trivial once socket reachable", "empirical": null, "requires": [], "origin": "default", "status": "unreachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cc_read_kallsyms", "target": "esc_kernel_exploit", "label": "kernel ROP gadget chain", "severance_label": "kallsyms + userns suffice", "empirical": null, "requires": ["cc_create_userns"], "origin": "default", "status": "unreachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_shell_exec", "target": "esc_sysadmin_escape", "label": "mount -t proc / /mnt", "severance_label": "SYS_ADMIN dropped", "empirical": null, "requires": [], "origin": "policy", "status": "severed", "was_bypassed_before": false, "was_severed_before": true, "novel_severance": false, "regressed": false}, {"source": "esc_chroot_host", "target": "host_owned", "label": "host shell", "severance_label": "", "empirical": null, "requires": [], "origin": "default", "status": "unreachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "esc_docker_sock_rce", "target": "host_owned", "label": "host shell", "severance_label": "", "empirical": null, "requires": [], "origin": "default", "status": "unreachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "esc_kernel_exploit", "target": "host_owned", "label": "host shell", "severance_label": "", "empirical": null, "requires": [], "origin": "default", "status": "unreachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "esc_sysadmin_escape", "target": "host_owned", "label": "host shell", "severance_label": "", "empirical": null, "requires": [], "origin": "default", "status": "unreachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}], "node_reachable": {"ia_ping": true, "ia_fetch": true, "ia_read": true, "ia_search": true, "ia_render": true, "ia_load": true, "cap_shell_exec": true, "cap_http_egress": true, "cap_file_read": true, "cap_db_read": true, "cap_python_eval": true, "cap_pickle_rce": false, "cc_read_shadow": true, "cc_read_kallsyms": false, "cc_create_userns": false, "cc_read_host": false, "cc_docker_sock": false, "cc_metadata_ssrf": false, "esc_chroot_host": false, "esc_docker_sock_rce": false, "esc_kernel_exploit": false, "esc_sysadmin_escape": false, "host_owned": false}, "stats": {"bypassed_edges": 5, "severed_edges": 4, "reachable_edges": 8, "host_owned": false, "compromised_l2_capabilities": 5}, "kill_paths": [], "score": -380, "rationale": "Self-check warnings identified that ssrf_allowed_hosts contained localhost,\n    127.0.0.1, and host.docker.internal—exactly the targets the red SSRF probe uses.\n    Removing these entries closes the SSRF bypass. Simultaneously, I enabled app_waf\n    globally and added comprehensive defences for all 6 vulnerabilities in a single\n    WAF configuration: (1) block_patterns now includes newline to stop semicolon+newline\n    injection bypasses seen in red_cmd_injection; (2) ssrf_allowed_hosts cleared to\n    block all internal SSRF; (3) path_traversal_block enabled to stop ../ and URL-encoded\n    traversal; (4) sqli_parameterized enabled for /search; (5) ssti_sandbox enabled\n    for /render; (6) pickle_disabled blocks /load. Container-level mounts remain empty\n    (no /host or docker.sock). This single WAF-category change addresses all 5 bypassed\n    edges (ia_ping, ia_fetch, ia_read, ia_search, ia_render) and closes the SSRF self-defeating\n    policy trap."}, {"iteration": 3, "nodes": [{"id": "ia_ping", "layer": 1, "label": "POST /ping", "description": "Command Injection (CWE-78)"}, {"id": "ia_fetch", "layer": 1, "label": "GET /fetch", "description": "SSRF (CWE-918)"}, {"id": "ia_read", "layer": 1, "label": "GET /read", "description": "Path Traversal (CWE-22)"}, {"id": "ia_search", "layer": 1, "label": "GET /search", "description": "SQL Injection (CWE-89)"}, {"id": "ia_render", "layer": 1, "label": "POST /render", "description": "SSTI (CWE-1336)"}, {"id": "ia_load", "layer": 1, "label": "POST /load", "description": "Insecure Deserialization (CWE-502)"}, {"id": "cap_shell_exec", "layer": 2, "label": "Shell exec (root)", "description": "Arbitrary command execution as container root"}, {"id": "cap_http_egress", "layer": 2, "label": "HTTP egress", "description": "Server-side HTTP requests on attacker's behalf"}, {"id": "cap_file_read", "layer": 2, "label": "File read", "description": "Arbitrary path read inside container"}, {"id": "cap_db_read", "layer": 2, "label": "DB read", "description": "Read /tmp/demo.db (incl. secrets table)"}, {"id": "cap_python_eval", "layer": 2, "label": "Python eval", "description": "Code execution in Jinja2 / app context"}, {"id": "cap_pickle_rce", "layer": 2, "label": "Pickle RCE", "description": "Deserialize attacker-controlled object"}, {"id": "cc_read_shadow", "layer": 3, "label": "Read /etc/shadow", "description": "Sensitive file read; needs root"}, {"id": "cc_read_kallsyms", "layer": 3, "label": "Leak kernel addrs", "description": "Read /proc/kallsyms"}, {"id": "cc_create_userns", "layer": 3, "label": "Create userns", "description": "unshare -U"}, {"id": "cc_read_host", "layer": 3, "label": "Read /host root", "description": "Host filesystem accessible via bind mount"}, {"id": "cc_docker_sock", "layer": 3, "label": "Talk docker.sock", "description": "Reach Docker daemon API"}, {"id": "cc_metadata_ssrf", "layer": 3, "label": "Cloud metadata", "description": "Reach 169.254.169.254 / IMDS via SSRF"}, {"id": "esc_chroot_host", "layer": 4, "label": "chroot to /host", "description": "Run binaries from host root"}, {"id": "esc_docker_sock_rce", "layer": 4, "label": "docker.sock RCE", "description": "Spawn privileged container"}, {"id": "esc_kernel_exploit", "layer": 4, "label": "Kernel exploit", "description": "kallsyms + userns -> kernel code exec"}, {"id": "esc_sysadmin_escape", "layer": 4, "label": "SYS_ADMIN escape", "description": "CAP_SYS_ADMIN allows mounting host fs"}, {"id": "host_owned", "layer": 5, "label": "Host compromised", "description": "Attacker has shell on host / cluster"}], "edges": [{"source": "ia_ping", "target": "cap_shell_exec", "label": "shell metachar injection", "severance_label": "app_waf blocks shell metachars", "empirical": "red_cmd_injection", "requires": [], "origin": "empirical", "status": "bypassed", "was_bypassed_before": true, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "ia_fetch", "target": "cap_http_egress", "label": "fetch attacker URL", "severance_label": "ssrf_allowed_hosts excludes loopback", "empirical": "red_ssrf", "requires": [], "origin": "empirical", "status": "bypassed", "was_bypassed_before": true, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "ia_read", "target": "cap_file_read", "label": "../ traversal", "severance_label": "path_traversal_block: true", "empirical": "red_path_traversal", "requires": [], "origin": "empirical", "status": "bypassed", "was_bypassed_before": true, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "ia_search", "target": "cap_db_read", "label": "UNION SELECT", "severance_label": "sqli_parameterized: true", "empirical": "red_sqli", "requires": [], "origin": "empirical", "status": "bypassed", "was_bypassed_before": true, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "ia_render", "target": "cap_python_eval", "label": "__class__ chain", "severance_label": "ssti_sandbox: true", "empirical": "red_ssti", "requires": [], "origin": "empirical", "status": "bypassed", "was_bypassed_before": true, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "ia_load", "target": "cap_pickle_rce", "label": "pickle.loads", "severance_label": "pickle_disabled / endpoint disabled", "empirical": "red_deserialization", "requires": [], "origin": "empirical", "status": "blocked", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_shell_exec", "target": "cc_read_shadow", "label": "cat /etc/shadow", "severance_label": "run_as_non_root: true", "empirical": null, "requires": [], "origin": "default", "status": "reachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_shell_exec", "target": "cc_read_kallsyms", "label": "cat /proc/kallsyms", "severance_label": "seccomp RuntimeDefault zeroes addrs", "empirical": "probe_proc_kallsyms", "requires": [], "origin": "empirical", "status": "blocked", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_shell_exec", "target": "cc_create_userns", "label": "unshare -U", "severance_label": "seccomp RuntimeDefault blocks", "empirical": "probe_userns", "requires": [], "origin": "empirical", "status": "blocked", "was_bypassed_before": true, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_shell_exec", "target": "cc_read_host", "label": "ls /host", "severance_label": "no /host bind mount", "empirical": "probe_host_mount", "requires": [], "origin": "empirical", "status": "blocked", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_shell_exec", "target": "cc_docker_sock", "label": "curl --unix-socket docker.sock", "severance_label": "no docker.sock bind mount", "empirical": "probe_docker_sock", "requires": [], "origin": "empirical", "status": "blocked", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_pickle_rce", "target": "cc_read_shadow", "label": "subprocess via gadget", "severance_label": "run_as_non_root: true", "empirical": null, "requires": [], "origin": "default", "status": "unreachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_pickle_rce", "target": "cc_read_kallsyms", "label": "subprocess via gadget", "severance_label": "seccomp RuntimeDefault", "empirical": null, "requires": [], "origin": "policy", "status": "severed", "was_bypassed_before": false, "was_severed_before": true, "novel_severance": false, "regressed": false}, {"source": "cap_pickle_rce", "target": "cc_create_userns", "label": "subprocess via gadget", "severance_label": "seccomp RuntimeDefault", "empirical": null, "requires": [], "origin": "policy", "status": "severed", "was_bypassed_before": false, "was_severed_before": true, "novel_severance": false, "regressed": false}, {"source": "cap_python_eval", "target": "cc_read_shadow", "label": "os.popen via __globals__", "severance_label": "run_as_non_root: true", "empirical": null, "requires": [], "origin": "default", "status": "reachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_file_read", "target": "cc_read_shadow", "label": "read /etc/passwd", "severance_label": "no policy lever (file_read = file_read)", "empirical": null, "requires": [], "origin": "default", "status": "reachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_http_egress", "target": "cc_metadata_ssrf", "label": "GET 169.254.169.254", "severance_label": "ssrf allowlist (excludes IMDS)", "empirical": null, "requires": [], "origin": "policy", "status": "severed", "was_bypassed_before": false, "was_severed_before": true, "novel_severance": false, "regressed": false}, {"source": "cc_read_host", "target": "esc_chroot_host", "label": "chroot /host /bin/bash", "severance_label": "trivial once host fs visible", "empirical": null, "requires": [], "origin": "default", "status": "unreachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cc_docker_sock", "target": "esc_docker_sock_rce", "label": "POST /containers/create privileged=true", "severance_label": "trivial once socket reachable", "empirical": null, "requires": [], "origin": "default", "status": "unreachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cc_read_kallsyms", "target": "esc_kernel_exploit", "label": "kernel ROP gadget chain", "severance_label": "kallsyms + userns suffice", "empirical": null, "requires": ["cc_create_userns"], "origin": "default", "status": "unreachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "cap_shell_exec", "target": "esc_sysadmin_escape", "label": "mount -t proc / /mnt", "severance_label": "SYS_ADMIN dropped", "empirical": null, "requires": [], "origin": "policy", "status": "severed", "was_bypassed_before": false, "was_severed_before": true, "novel_severance": false, "regressed": false}, {"source": "esc_chroot_host", "target": "host_owned", "label": "host shell", "severance_label": "", "empirical": null, "requires": [], "origin": "default", "status": "unreachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "esc_docker_sock_rce", "target": "host_owned", "label": "host shell", "severance_label": "", "empirical": null, "requires": [], "origin": "default", "status": "unreachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "esc_kernel_exploit", "target": "host_owned", "label": "host shell", "severance_label": "", "empirical": null, "requires": [], "origin": "default", "status": "unreachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}, {"source": "esc_sysadmin_escape", "target": "host_owned", "label": "host shell", "severance_label": "", "empirical": null, "requires": [], "origin": "default", "status": "unreachable", "was_bypassed_before": false, "was_severed_before": false, "novel_severance": false, "regressed": false}], "node_reachable": {"ia_ping": true, "ia_fetch": true, "ia_read": true, "ia_search": true, "ia_render": true, "ia_load": true, "cap_shell_exec": true, "cap_http_egress": true, "cap_file_read": true, "cap_db_read": true, "cap_python_eval": true, "cap_pickle_rce": false, "cc_read_shadow": true, "cc_read_kallsyms": false, "cc_create_userns": false, "cc_read_host": false, "cc_docker_sock": false, "cc_metadata_ssrf": false, "esc_chroot_host": false, "esc_docker_sock_rce": false, "esc_kernel_exploit": false, "esc_sysadmin_escape": false, "host_owned": false}, "stats": {"bypassed_edges": 5, "severed_edges": 4, "reachable_edges": 8, "host_owned": false, "compromised_l2_capabilities": 5}, "kill_paths": [], "score": -380, "rationale": "Five bypassed edges remain at L1→L2: ia_ping, ia_fetch, ia_read, ia_render,\n    ia_search.\n\n    The command injection block_patterns regex `[;&|`$()\\\\n]` is not catching all\n    bypasses.\n\n    Red team payloads like `127.0.0.1; id` (semicolon+space) and `127.0.0.1 && id`\n    (ampersand+space)\n\n    are bypassing because the regex requires the metachar to be adjacent with no whitespace.\n\n    Adding a second pattern with word boundaries and case-insensitive SQL keywords\n    to catch\n\n    both shell injection variants (with spaces) and SQL injection payloads that slip\n    through\n\n    parameterization checks. This single app_waf block_patterns change targets the\n    highest-impact\n\n    bypassed edges: ia_ping→cap_shell_exec and ia_search→cap_db_read, which feed into\n\n    cc_read_shadow (REACHABLE). Severing these two edges cascades and reduces live\n    paths."}];
+
+let cur = 0;
+
+const LAYER_NAMES = {
+  1: "L1 Initial Access",
+  2: "L2 Capability",
+  3: "L3 Container Compromise",
+  4: "L4 Container Escape",
+  5: "L5 Host"
+};
+
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = (s == null ? '' : String(s));
+  return d.innerHTML;
+}
+
+function renderGraph(round) {
+  const svg = document.getElementById('svg');
+  const W = 1100;
+  const margin = { top: 30, bottom: 30, left: 70, right: 30 };
+
+  // Group nodes by layer.
+  const layers = {1: [], 2: [], 3: [], 4: [], 5: []};
+  for (const n of round.nodes) layers[n.layer].push(n);
+
+  // Vertical: each layer gets equal vertical band.
+  const layerCount = 5;
+  const innerW = W - margin.left - margin.right;
+  // Tall enough to comfortably hold each layer; biggest layer is L2/L3 with ~6 nodes.
+  const layerH = 130;
+  const H = margin.top + layerCount * layerH + margin.bottom + 30;
+
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+  // Position lookup keyed by node id.
+  const pos = {};
+  for (let layer = 1; layer <= 5; layer++) {
+    const arr = layers[layer];
+    const n = arr.length;
+    const cy = margin.top + (layer - 0.5) * layerH;
+    arr.forEach((node, i) => {
+      // Spread evenly across innerW.
+      const cx = margin.left + ((i + 0.5) * innerW) / n;
+      pos[node.id] = { cx, cy, w: 150, h: 56 };
+    });
+  }
+
+  let svgInner = '';
+
+  // Layer dividers + labels.
+  for (let layer = 1; layer <= 5; layer++) {
+    const y = margin.top + layer * layerH;
+    if (layer < 5) {
+      svgInner += `<line class="layer-divider" x1="${margin.left}" y1="${y}" x2="${W - margin.right}" y2="${y}"/>`;
+    }
+    const labelY = margin.top + (layer - 0.5) * layerH - layerH/2 + 14;
+    svgInner += `<text x="14" y="${labelY}" fill="#6e7681" font-family="monospace" font-size="11" letter-spacing="1px">${escHtml(LAYER_NAMES[layer])}</text>`;
+  }
+
+  // Edges first (under nodes).
+  for (const e of round.edges) {
+    const p1 = pos[e.source];
+    const p2 = pos[e.target];
+    if (!p1 || !p2) continue;
+    const cls = ['edge', e.status];
+    if (e.regressed)       cls.push('regressed');
+    if (e.novel_severance) cls.push('novel-severance');
+    // Vertical bezier from bottom of source to top of target.
+    const y1 = p1.cy + p1.h/2;
+    const y2 = p2.cy - p2.h/2;
+    const dy = (y2 - y1) / 2;
+    const path = `M ${p1.cx} ${y1} C ${p1.cx} ${y1 + dy}, ${p2.cx} ${y2 - dy}, ${p2.cx} ${y2}`;
+    const reqNote = (e.requires && e.requires.length) ? ` [+needs ${e.requires.join(',')}]` : '';
+    const sev = e.severance_label ? `\nseverance: ${e.severance_label}` : '';
+    const emp = e.empirical ? `\nempirical probe: ${e.empirical} (${e.origin})` : `\norigin: ${e.origin}`;
+    const title = `${e.source} -> ${e.target}\nlabel: ${e.label}${reqNote}\nstatus: ${e.status}${emp}${sev}`;
+    svgInner += `<path class="${cls.join(' ')}" d="${path}"><title>${escHtml(title)}</title></path>`;
+  }
+
+  // Nodes.
+  for (const n of round.nodes) {
+    const p = pos[n.id];
+    const reachable = !!round.node_reachable[n.id];
+    const cls = reachable ? 'compromised' : 'safe';
+    const x = p.cx - p.w/2;
+    const y = p.cy - p.h/2;
+    const titleAttr = `${n.id}\n${n.description || ''}`;
+    svgInner += `<g class="node-box ${cls}">
+      <title>${escHtml(titleAttr)}</title>
+      <rect x="${x}" y="${y}" width="${p.w}" height="${p.h}"></rect>
+      <text x="${p.cx}" y="${p.cy - 4}" text-anchor="middle" font-weight="600">${escHtml(n.label)}</text>
+      <text class="desc" x="${p.cx}" y="${p.cy + 14}" text-anchor="middle">${escHtml((n.description || '').slice(0, 32))}</text>
+    </g>`;
+  }
+
+  svg.innerHTML = svgInner;
+}
+
+function renderSidebar(round) {
+  document.getElementById('sIter').textContent = round.iteration;
+  const sc = round.score == null ? '-' : (round.score >= 0 ? '+' : '') + round.score;
+  document.getElementById('sScore').textContent = sc;
+  const host = round.stats.host_owned;
+  const sh = document.getElementById('sHost');
+  sh.textContent = host ? 'YES' : 'no';
+  sh.className = 'v ' + (host ? 'bad' : 'good');
+  document.getElementById('sBypass').textContent = round.stats.bypassed_edges;
+  document.getElementById('sReach').textContent = round.stats.reachable_edges;
+  document.getElementById('sSever').textContent = round.stats.severed_edges;
+  document.getElementById('sCaps').textContent = round.stats.compromised_l2_capabilities + ' / 6';
+  document.getElementById('rationale').textContent = round.rationale || '(no rationale)';
+
+  const paths = document.getElementById('paths');
+  paths.innerHTML = '';
+  if (!round.kill_paths || round.kill_paths.length === 0) {
+    const div = document.createElement('div');
+    div.style.color = 'var(--green)';
+    div.style.fontSize = '12px';
+    div.textContent = 'No live path to host_owned this round.';
+    paths.appendChild(div);
+  } else {
+    for (const p of round.kill_paths) {
+      const div = document.createElement('div');
+      div.className = 'path';
+      div.textContent = p.join(' -> ');
+      paths.appendChild(div);
+    }
+  }
+
+  const list = document.getElementById('edgeList');
+  list.innerHTML = '';
+  const interesting = round.edges.filter(e =>
+    e.status === 'bypassed' || e.status === 'reachable' ||
+    e.regressed || e.novel_severance
+  );
+  interesting.sort((a, b) => {
+    const rank = e => (e.status === 'bypassed' ? 0 : (e.regressed ? 1 : (e.novel_severance ? 2 : (e.status === 'reachable' ? 3 : 4))));
+    return rank(a) - rank(b);
+  });
+  for (const e of interesting) {
+    const cls = ['edge-item', e.status];
+    let tag = '';
+    if (e.regressed) tag = ' [REGRESSED]';
+    else if (e.novel_severance) tag = ' [NEWLY-SEVERED]';
+    const div = document.createElement('div');
+    div.className = cls.join(' ');
+    div.textContent = `${e.source} -> ${e.target}${tag}`;
+    div.title = `${e.label}\n${e.severance_label || ''}`;
+    list.appendChild(div);
+  }
+}
+
+function render() {
+  const r = ROUNDS[cur];
+  document.getElementById('roundLabel').textContent = `Round ${r.iteration}`;
+  document.getElementById('slider').value = cur;
+  renderGraph(r);
+  renderSidebar(r);
+  document.getElementById('prevBtn').disabled = cur === 0;
+  document.getElementById('nextBtn').disabled = cur === ROUNDS.length - 1;
+}
+
+document.getElementById('slider').max = ROUNDS.length - 1;
+document.getElementById('slider').addEventListener('input', e => {
+  cur = parseInt(e.target.value, 10); render();
+});
+document.getElementById('prevBtn').onclick = () => { if (cur > 0) { cur--; render(); } };
+document.getElementById('nextBtn').onclick = () => { if (cur < ROUNDS.length - 1) { cur++; render(); } };
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft' && cur > 0) { cur--; render(); }
+  else if (e.key === 'ArrowRight' && cur < ROUNDS.length - 1) { cur++; render(); }
+});
+
+render();
+</script>
+</body>
+</html>

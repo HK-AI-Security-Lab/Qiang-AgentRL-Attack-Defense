@@ -1,0 +1,15 @@
+{
+  "block_patterns": [
+    "[;&|`$()\\\\n]",
+    "(?i)(\\s|^)(union|select|insert|update|delete|drop|create|alter|exec|execute|script|javascript|onerror|onload|eval|function)(\\s|$)"
+  ],
+  "ssrf_allowed_schemes": [
+    "http",
+    "https"
+  ],
+  "ssrf_allowed_hosts": [],
+  "path_traversal_block": true,
+  "sqli_parameterized": true,
+  "ssti_sandbox": true,
+  "pickle_disabled": true
+}

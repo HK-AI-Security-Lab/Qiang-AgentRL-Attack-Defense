@@ -1,0 +1,52 @@
+[
+  {
+    "node": "api_gateway",
+    "paths_cut": 12,
+    "score_sum": 210.8,
+    "betweenness": 0.0392,
+    "path_norm": 1.0,
+    "blend": 0.7118,
+    "kind": "service",
+    "label": "API Gateway"
+  },
+  {
+    "node": "order_svc",
+    "paths_cut": 7,
+    "score_sum": 127.11,
+    "betweenness": 0.0447,
+    "path_norm": 0.5833333333333334,
+    "blend": 0.4217,
+    "kind": "service",
+    "label": "order-create-svc"
+  },
+  {
+    "node": "user_db",
+    "paths_cut": 2,
+    "score_sum": 39.6,
+    "betweenness": 0.03,
+    "path_norm": 0.16666666666666666,
+    "blend": 0.1257,
+    "kind": "service",
+    "label": "user-postgres"
+  },
+  {
+    "node": "search_svc",
+    "paths_cut": 2,
+    "score_sum": 36.07,
+    "betweenness": 0.0174,
+    "path_norm": 0.16666666666666666,
+    "blend": 0.1219,
+    "kind": "service",
+    "label": "product-search-svc"
+  },
+  {
+    "node": "postgres-image",
+    "paths_cut": 2,
+    "score_sum": 39.6,
+    "betweenness": 0.0169,
+    "path_norm": 0.16666666666666666,
+    "blend": 0.1217,
+    "kind": "workload",
+    "label": "postgres:14.5"
+  }
+]

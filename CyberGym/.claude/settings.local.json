@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(python3 -c ':*)",
+      "Bash(pip install:*)",
+      "Bash(python3:*)",
+      "WebFetch(domain:arxiv.org)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(curl -s \"https://raw.githubusercontent.com/exploitbench/exploitbench/main/benchmarks/v8.yaml\")",
+      "Bash(curl -fsSL \"https://raw.githubusercontent.com/exploitbench/exploitbench/main/benchmarks/v8.yaml\" -o /tmp/exploitbench_v8.yaml)",
+      "Read(//tmp/**)",
+      "Bash(pip show:*)",
+      "Bash(gh api:*)"
+    ]
+  }
+}

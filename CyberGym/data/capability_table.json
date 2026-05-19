@@ -1,0 +1,178 @@
+[
+  {
+    "task_id": "exploitgym:kernel:syzbot-aabb1122",
+    "cve_id": null,
+    "affected_node_type": "InfraNode",
+    "pre_condition": [
+      "local_low_priv",
+      "untrusted_input"
+    ],
+    "post_condition": [
+      "escape_to_host",
+      "privilege_escalation",
+      "rce"
+    ],
+    "cvss": 9.2,
+    "exploit_maturity": "poc",
+    "match_hints": {
+      "project_name": "linux",
+      "language": "c",
+      "vuln_type": "type-confusion"
+    },
+    "rationale": "Kernel type-confusion in parser subsystem allows local attacker with untrusted input to achieve code execution and privilege escalation.",
+    "source": "llm"
+  },
+  {
+    "task_id": "cybergym:arvo:10013",
+    "cve_id": null,
+    "affected_node_type": "Workload",
+    "pre_condition": [
+      "untrusted_input"
+    ],
+    "post_condition": [
+      "denial_of_service",
+      "info_leak",
+      "rce"
+    ],
+    "cvss": 9.0,
+    "exploit_maturity": "poc",
+    "match_hints": {
+      "project_name": "ffmpeg",
+      "language": "c",
+      "vuln_type": "heap-buffer-overflow"
+    },
+    "rationale": "Heap-buffer-overflow in ffmpeg decoder triggered by untrusted input can leak memory, crash the process, or achieve code execution.",
+    "source": "llm"
+  },
+  {
+    "task_id": "exploitbench:v8-cve-2024-1939",
+    "cve_id": "CVE-2024-1939",
+    "affected_node_type": "Service",
+    "pre_condition": [
+      "network_reach",
+      "untrusted_input"
+    ],
+    "post_condition": [
+      "rce"
+    ],
+    "cvss": 7.5,
+    "exploit_maturity": "poc",
+    "match_hints": {
+      "project_name": "chromium_v8",
+      "language": "cpp",
+      "vuln_type": "logic_error"
+    },
+    "rationale": "V8 WASM logic error in signature validation allows untrusted WASM bytecode to trigger memory corruption leading to RCE in the browser engine.",
+    "source": "llm"
+  },
+  {
+    "task_id": "exploitgym:kernel:syzbot-ccdd3344",
+    "cve_id": null,
+    "affected_node_type": "InfraNode",
+    "pre_condition": [
+      "local_low_priv",
+      "untrusted_input"
+    ],
+    "post_condition": [
+      "escape_to_host",
+      "privilege_escalation",
+      "rce"
+    ],
+    "cvss": 9.2,
+    "exploit_maturity": "poc",
+    "match_hints": {
+      "project_name": "linux",
+      "language": "c",
+      "vuln_type": "double-free"
+    },
+    "rationale": "Kernel double-free in codec subsystem allows local attacker with untrusted input to achieve RCE and privilege escalation with container escape capability.",
+    "source": "llm"
+  },
+  {
+    "task_id": "cybergym:arvo:10055",
+    "cve_id": null,
+    "affected_node_type": "Service",
+    "pre_condition": [
+      "network_reach",
+      "untrusted_input"
+    ],
+    "post_condition": [
+      "denial_of_service",
+      "rce"
+    ],
+    "cvss": 7.5,
+    "exploit_maturity": "poc",
+    "match_hints": {
+      "project_name": "openssl",
+      "language": "c",
+      "vuln_type": "use-after-free"
+    },
+    "rationale": "Use-after-free in OpenSSL's input parser on untrusted data can cause memory corruption leading to RCE or DoS; network-facing service requires network_reach.",
+    "source": "llm"
+  },
+  {
+    "task_id": "exploitbench:v8-cve-2024-6100",
+    "cve_id": "CVE-2024-6100",
+    "affected_node_type": "Service",
+    "pre_condition": [
+      "network_reach",
+      "untrusted_input"
+    ],
+    "post_condition": [
+      "escape_to_host",
+      "rce"
+    ],
+    "cvss": 9.2,
+    "exploit_maturity": "functional",
+    "match_hints": {
+      "project_name": "chromium_v8",
+      "language": "cpp",
+      "vuln_type": "logic_error"
+    },
+    "rationale": "V8 WASM logic error with sandbox bypass annotation directly enables RCE and container escape in the browser service.",
+    "source": "llm"
+  },
+  {
+    "task_id": "cybergym:arvo:10096",
+    "cve_id": null,
+    "affected_node_type": "Workload",
+    "pre_condition": [
+      "untrusted_input"
+    ],
+    "post_condition": [
+      "denial_of_service",
+      "rce"
+    ],
+    "cvss": 5.5,
+    "exploit_maturity": "poc",
+    "match_hints": {
+      "project_name": "libxml2",
+      "language": "c",
+      "vuln_type": "stack-buffer-overflow"
+    },
+    "rationale": "Stack-buffer-overflow in a C parser library triggered by untrusted input can cause denial-of-service or code execution via memory corruption.",
+    "source": "llm"
+  },
+  {
+    "task_id": "exploitbench:v8-cve-2024-10231",
+    "cve_id": "CVE-2024-10231",
+    "affected_node_type": "Service",
+    "pre_condition": [
+      "network_reach",
+      "untrusted_input"
+    ],
+    "post_condition": [
+      "escape_to_host",
+      "rce"
+    ],
+    "cvss": 9.2,
+    "exploit_maturity": "functional",
+    "match_hints": {
+      "project_name": "chromium_v8",
+      "language": "cpp",
+      "vuln_type": "type_confusion"
+    },
+    "rationale": "Type confusion in V8 WASM JIT with sandbox bypass enables arbitrary code execution and container escape in the browser engine.",
+    "source": "llm"
+  }
+]

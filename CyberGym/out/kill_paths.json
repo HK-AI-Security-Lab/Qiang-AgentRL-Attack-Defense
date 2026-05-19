@@ -1,0 +1,645 @@
+[
+  {
+    "target": "node-data-01",
+    "path": [
+      "internet",
+      "user_db",
+      "postgres-image",
+      "node-data-01"
+    ],
+    "edges": [
+      {
+        "source": "internet",
+        "target": "user_db",
+        "types": [
+          "VULN_EXPLOIT"
+        ],
+        "max_cvss": 7.5
+      },
+      {
+        "source": "user_db",
+        "target": "postgres-image",
+        "types": [
+          "RUNS_AS"
+        ],
+        "max_cvss": null
+      },
+      {
+        "source": "postgres-image",
+        "target": "node-data-01",
+        "types": [
+          "DEPENDS_ON",
+          "VULN_EXPLOIT"
+        ],
+        "max_cvss": 9.2
+      }
+    ],
+    "uses_vuln": true,
+    "vuln_count": 2,
+    "max_cvss": 9.2,
+    "depth": 3,
+    "score": 20.1
+  },
+  {
+    "target": "node-edge-01",
+    "path": [
+      "internet",
+      "api_gateway",
+      "api-gw-image",
+      "node-edge-01"
+    ],
+    "edges": [
+      {
+        "source": "internet",
+        "target": "api_gateway",
+        "types": [
+          "NETWORK_REACH",
+          "VULN_EXPLOIT"
+        ],
+        "max_cvss": 7.5
+      },
+      {
+        "source": "api_gateway",
+        "target": "api-gw-image",
+        "types": [
+          "RUNS_AS"
+        ],
+        "max_cvss": null
+      },
+      {
+        "source": "api-gw-image",
+        "target": "node-edge-01",
+        "types": [
+          "DEPENDS_ON",
+          "VULN_EXPLOIT"
+        ],
+        "max_cvss": 9.2
+      }
+    ],
+    "uses_vuln": true,
+    "vuln_count": 2,
+    "max_cvss": 9.2,
+    "depth": 3,
+    "score": 20.1
+  },
+  {
+    "target": "node-app-01",
+    "path": [
+      "internet",
+      "api_gateway",
+      "order_svc",
+      "order-app-image",
+      "node-app-01"
+    ],
+    "edges": [
+      {
+        "source": "internet",
+        "target": "api_gateway",
+        "types": [
+          "NETWORK_REACH",
+          "VULN_EXPLOIT"
+        ],
+        "max_cvss": 7.5
+      },
+      {
+        "source": "api_gateway",
+        "target": "order_svc",
+        "types": [
+          "NETWORK_REACH"
+        ],
+        "max_cvss": null
+      },
+      {
+        "source": "order_svc",
+        "target": "order-app-image",
+        "types": [
+          "RUNS_AS"
+        ],
+        "max_cvss": null
+      },
+      {
+        "source": "order-app-image",
+        "target": "node-app-01",
+        "types": [
+          "DEPENDS_ON",
+          "VULN_EXPLOIT"
+        ],
+        "max_cvss": 9.2
+      }
+    ],
+    "uses_vuln": true,
+    "vuln_count": 2,
+    "max_cvss": 9.2,
+    "depth": 4,
+    "score": 19.8
+  },
+  {
+    "target": "node-app-02",
+    "path": [
+      "internet",
+      "api_gateway",
+      "search_svc",
+      "search-app-image",
+      "node-app-02"
+    ],
+    "edges": [
+      {
+        "source": "internet",
+        "target": "api_gateway",
+        "types": [
+          "NETWORK_REACH",
+          "VULN_EXPLOIT"
+        ],
+        "max_cvss": 7.5
+      },
+      {
+        "source": "api_gateway",
+        "target": "search_svc",
+        "types": [
+          "NETWORK_REACH"
+        ],
+        "max_cvss": null
+      },
+      {
+        "source": "search_svc",
+        "target": "search-app-image",
+        "types": [
+          "RUNS_AS"
+        ],
+        "max_cvss": null
+      },
+      {
+        "source": "search-app-image",
+        "target": "node-app-02",
+        "types": [
+          "DEPENDS_ON",
+          "VULN_EXPLOIT"
+        ],
+        "max_cvss": 9.2
+      }
+    ],
+    "uses_vuln": true,
+    "vuln_count": 2,
+    "max_cvss": 9.2,
+    "depth": 4,
+    "score": 19.8
+  },
+  {
+    "target": "node-app-01",
+    "path": [
+      "internet",
+      "api_gateway",
+      "order_svc",
+      "payment_svc",
+      "payment-app-image",
+      "node-app-01"
+    ],
+    "edges": [
+      {
+        "source": "internet",
+        "target": "api_gateway",
+        "types": [
+          "NETWORK_REACH",
+          "VULN_EXPLOIT"
+        ],
+        "max_cvss": 7.5
+      },
+      {
+        "source": "api_gateway",
+        "target": "order_svc",
+        "types": [
+          "NETWORK_REACH"
+        ],
+        "max_cvss": null
+      },
+      {
+        "source": "order_svc",
+        "target": "payment_svc",
+        "types": [
+          "IAM_BINDING",
+          "NETWORK_REACH"
+        ],
+        "max_cvss": null
+      },
+      {
+        "source": "payment_svc",
+        "target": "payment-app-image",
+        "types": [
+          "RUNS_AS"
+        ],
+        "max_cvss": null
+      },
+      {
+        "source": "payment-app-image",
+        "target": "node-app-01",
+        "types": [
+          "DEPENDS_ON",
+          "VULN_EXPLOIT"
+        ],
+        "max_cvss": 9.2
+      }
+    ],
+    "uses_vuln": true,
+    "vuln_count": 2,
+    "max_cvss": 9.2,
+    "depth": 5,
+    "score": 19.5
+  },
+  {
+    "target": "node-data-01",
+    "path": [
+      "internet",
+      "api_gateway",
+      "order_svc",
+      "user_db",
+      "postgres-image",
+      "node-data-01"
+    ],
+    "edges": [
+      {
+        "source": "internet",
+        "target": "api_gateway",
+        "types": [
+          "NETWORK_REACH",
+          "VULN_EXPLOIT"
+        ],
+        "max_cvss": 7.5
+      },
+      {
+        "source": "api_gateway",
+        "target": "order_svc",
+        "types": [
+          "NETWORK_REACH"
+        ],
+        "max_cvss": null
+      },
+      {
+        "source": "order_svc",
+        "target": "user_db",
+        "types": [
+          "IAM_BINDING",
+          "NETWORK_REACH"
+        ],
+        "max_cvss": null
+      },
+      {
+        "source": "user_db",
+        "target": "postgres-image",
+        "types": [
+          "RUNS_AS"
+        ],
+        "max_cvss": null
+      },
+      {
+        "source": "postgres-image",
+        "target": "node-data-01",
+        "types": [
+          "DEPENDS_ON",
+          "VULN_EXPLOIT"
+        ],
+        "max_cvss": 9.2
+      }
+    ],
+    "uses_vuln": true,
+    "vuln_count": 2,
+    "max_cvss": 9.2,
+    "depth": 5,
+    "score": 19.5
+  },
+  {
+    "target": "node-data-01",
+    "path": [
+      "internet",
+      "api_gateway",
+      "order_svc",
+      "cache_redis",
+      "redis-image",
+      "node-data-01"
+    ],
+    "edges": [
+      {
+        "source": "internet",
+        "target": "api_gateway",
+        "types": [
+          "NETWORK_REACH",
+          "VULN_EXPLOIT"
+        ],
+        "max_cvss": 7.5
+      },
+      {
+        "source": "api_gateway",
+        "target": "order_svc",
+        "types": [
+          "NETWORK_REACH"
+        ],
+        "max_cvss": null
+      },
+      {
+        "source": "order_svc",
+        "target": "cache_redis",
+        "types": [
+          "NETWORK_REACH"
+        ],
+        "max_cvss": null
+      },
+      {
+        "source": "cache_redis",
+        "target": "redis-image",
+        "types": [
+          "RUNS_AS"
+        ],
+        "max_cvss": null
+      },
+      {
+        "source": "redis-image",
+        "target": "node-data-01",
+        "types": [
+          "DEPENDS_ON",
+          "VULN_EXPLOIT"
+        ],
+        "max_cvss": 9.2
+      }
+    ],
+    "uses_vuln": true,
+    "vuln_count": 2,
+    "max_cvss": 9.2,
+    "depth": 5,
+    "score": 19.5
+  },
+  {
+    "target": "api_gateway",
+    "path": [
+      "internet",
+      "api_gateway"
+    ],
+    "edges": [
+      {
+        "source": "internet",
+        "target": "api_gateway",
+        "types": [
+          "NETWORK_REACH",
+          "VULN_EXPLOIT"
+        ],
+        "max_cvss": 7.5
+      }
+    ],
+    "uses_vuln": true,
+    "vuln_count": 1,
+    "max_cvss": 7.5,
+    "depth": 1,
+    "score": 16.88
+  },
+  {
+    "target": "user_db",
+    "path": [
+      "internet",
+      "user_db"
+    ],
+    "edges": [
+      {
+        "source": "internet",
+        "target": "user_db",
+        "types": [
+          "VULN_EXPLOIT"
+        ],
+        "max_cvss": 7.5
+      }
+    ],
+    "uses_vuln": true,
+    "vuln_count": 1,
+    "max_cvss": 7.5,
+    "depth": 1,
+    "score": 16.88
+  },
+  {
+    "target": "order_svc",
+    "path": [
+      "internet",
+      "api_gateway",
+      "order_svc"
+    ],
+    "edges": [
+      {
+        "source": "internet",
+        "target": "api_gateway",
+        "types": [
+          "NETWORK_REACH",
+          "VULN_EXPLOIT"
+        ],
+        "max_cvss": 7.5
+      },
+      {
+        "source": "api_gateway",
+        "target": "order_svc",
+        "types": [
+          "NETWORK_REACH"
+        ],
+        "max_cvss": null
+      }
+    ],
+    "uses_vuln": true,
+    "vuln_count": 1,
+    "max_cvss": 7.5,
+    "depth": 2,
+    "score": 16.57
+  },
+  {
+    "target": "cache_redis",
+    "path": [
+      "internet",
+      "api_gateway",
+      "order_svc",
+      "cache_redis"
+    ],
+    "edges": [
+      {
+        "source": "internet",
+        "target": "api_gateway",
+        "types": [
+          "NETWORK_REACH",
+          "VULN_EXPLOIT"
+        ],
+        "max_cvss": 7.5
+      },
+      {
+        "source": "api_gateway",
+        "target": "order_svc",
+        "types": [
+          "NETWORK_REACH"
+        ],
+        "max_cvss": null
+      },
+      {
+        "source": "order_svc",
+        "target": "cache_redis",
+        "types": [
+          "NETWORK_REACH"
+        ],
+        "max_cvss": null
+      }
+    ],
+    "uses_vuln": true,
+    "vuln_count": 1,
+    "max_cvss": 7.5,
+    "depth": 3,
+    "score": 16.27
+  },
+  {
+    "target": "payment_svc",
+    "path": [
+      "internet",
+      "api_gateway",
+      "order_svc",
+      "payment_svc"
+    ],
+    "edges": [
+      {
+        "source": "internet",
+        "target": "api_gateway",
+        "types": [
+          "NETWORK_REACH",
+          "VULN_EXPLOIT"
+        ],
+        "max_cvss": 7.5
+      },
+      {
+        "source": "api_gateway",
+        "target": "order_svc",
+        "types": [
+          "NETWORK_REACH"
+        ],
+        "max_cvss": null
+      },
+      {
+        "source": "order_svc",
+        "target": "payment_svc",
+        "types": [
+          "IAM_BINDING",
+          "NETWORK_REACH"
+        ],
+        "max_cvss": null
+      }
+    ],
+    "uses_vuln": true,
+    "vuln_count": 1,
+    "max_cvss": 7.5,
+    "depth": 3,
+    "score": 16.27
+  },
+  {
+    "target": "user_db",
+    "path": [
+      "internet",
+      "api_gateway",
+      "order_svc",
+      "user_db"
+    ],
+    "edges": [
+      {
+        "source": "internet",
+        "target": "api_gateway",
+        "types": [
+          "NETWORK_REACH",
+          "VULN_EXPLOIT"
+        ],
+        "max_cvss": 7.5
+      },
+      {
+        "source": "api_gateway",
+        "target": "order_svc",
+        "types": [
+          "NETWORK_REACH"
+        ],
+        "max_cvss": null
+      },
+      {
+        "source": "order_svc",
+        "target": "user_db",
+        "types": [
+          "IAM_BINDING",
+          "NETWORK_REACH"
+        ],
+        "max_cvss": null
+      }
+    ],
+    "uses_vuln": true,
+    "vuln_count": 1,
+    "max_cvss": 7.5,
+    "depth": 3,
+    "score": 16.27
+  },
+  {
+    "target": "user_db",
+    "path": [
+      "internet",
+      "api_gateway",
+      "search_svc",
+      "user_db"
+    ],
+    "edges": [
+      {
+        "source": "internet",
+        "target": "api_gateway",
+        "types": [
+          "NETWORK_REACH",
+          "VULN_EXPLOIT"
+        ],
+        "max_cvss": 7.5
+      },
+      {
+        "source": "api_gateway",
+        "target": "search_svc",
+        "types": [
+          "NETWORK_REACH"
+        ],
+        "max_cvss": null
+      },
+      {
+        "source": "search_svc",
+        "target": "user_db",
+        "types": [
+          "IAM_BINDING",
+          "NETWORK_REACH"
+        ],
+        "max_cvss": null
+      }
+    ],
+    "uses_vuln": true,
+    "vuln_count": 1,
+    "max_cvss": 7.5,
+    "depth": 3,
+    "score": 16.27
+  },
+  {
+    "target": "search_svc",
+    "path": [
+      "internet",
+      "api_gateway",
+      "search_svc"
+    ],
+    "edges": [
+      {
+        "source": "internet",
+        "target": "api_gateway",
+        "types": [
+          "NETWORK_REACH",
+          "VULN_EXPLOIT"
+        ],
+        "max_cvss": 7.5
+      },
+      {
+        "source": "api_gateway",
+        "target": "search_svc",
+        "types": [
+          "NETWORK_REACH"
+        ],
+        "max_cvss": null
+      }
+    ],
+    "uses_vuln": true,
+    "vuln_count": 1,
+    "max_cvss": 7.5,
+    "depth": 2,
+    "score": 10.95
+  }
+]

@@ -1,0 +1,46 @@
+policy_intent:
+  name: harden-iter-2
+  target:
+    image: autopatch-target:vuln
+  controls:
+    container_security:
+      run_as_non_root: false
+      allow_privilege_escalation: false
+      read_only_root_fs: false
+      no_new_privileges: true
+      privileged: false
+    capabilities:
+      drop:
+      - ALL
+      add:
+      - NET_RAW
+    seccomp:
+      profile: RuntimeDefault
+    mounts:
+      bind: []
+    namespace:
+      pid_host: false
+    app_waf:
+      enabled: true
+      block_patterns:
+      - '[;&|`$()\n]'
+      ssrf_allowed_schemes:
+      - http
+      - https
+      ssrf_allowed_hosts: []
+      path_traversal_block: true
+      sqli_parameterized: true
+      ssti_sandbox: true
+      pickle_disabled: true
+  rationale: 'Self-check warnings identified that ssrf_allowed_hosts contained localhost,
+    127.0.0.1, and host.docker.internal—exactly the targets the red SSRF probe uses.
+    Removing these entries closes the SSRF bypass. Simultaneously, I enabled app_waf
+    globally and added comprehensive defences for all 6 vulnerabilities in a single
+    WAF configuration: (1) block_patterns now includes newline to stop semicolon+newline
+    injection bypasses seen in red_cmd_injection; (2) ssrf_allowed_hosts cleared to
+    block all internal SSRF; (3) path_traversal_block enabled to stop ../ and URL-encoded
+    traversal; (4) sqli_parameterized enabled for /search; (5) ssti_sandbox enabled
+    for /render; (6) pickle_disabled blocks /load. Container-level mounts remain empty
+    (no /host or docker.sock). This single WAF-category change addresses all 5 bypassed
+    edges (ia_ping, ia_fetch, ia_read, ia_search, ia_render) and closes the SSRF self-defeating
+    policy trap.'

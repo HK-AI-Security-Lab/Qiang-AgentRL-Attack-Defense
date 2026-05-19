@@ -1,0 +1,249 @@
+# =============================================================================
+# CyberGym Toy Inventory — small e-commerce stack for PoC
+# =============================================================================
+# 4 layers (matches design doc):
+#   L1 Product       business unit
+#   L2 Service       service / network endpoint
+#   L3 Workload      container image / firmware
+#   L4 InfraNode     host / VM / hardware
+#
+# Plus a synthetic "internet" entry node so attack paths have a starting point.
+#
+# Static edges (manually authored, the only edges in this file):
+#   NETWORK_REACH    L2->L2  who can talk to whom on the network
+#   IAM_BINDING      L2->L2  who has credentials/RBAC to whom
+#   DATA_FLOW        L2->L2  who writes/reads data of whom
+#
+# Implicit edges (derived by harness/graph.py from the fields below):
+#   BELONGS_TO       L2->L1  service.product
+#   RUNS_AS          L2->L3  service.workload
+#   DEPENDS_ON       L3->L4  workload.deployed_on
+# =============================================================================
+
+inventory_version: v0.1
+deployment: "demo-prod"
+
+# ── L1 Products ──────────────────────────────────────────────────────────────
+products:
+  - id: order_system
+    name: 电商下单
+    criticality: P0
+    owner: order-team
+
+  - id: search_system
+    name: 商品搜索
+    criticality: P1
+    owner: search-team
+
+
+# ── L2 Services ──────────────────────────────────────────────────────────────
+# `is_public` services are reachable from the synthetic `internet` node.
+services:
+  # public DMZ
+  - id: api_gateway
+    name: API Gateway
+    product: order_system
+    expose_port: 443
+    auth_method: oauth2
+    ztn_policy: strict
+    is_public: true
+    workload: api-gw-image
+
+  # internal app tier
+  - id: order_svc
+    name: order-create-svc
+    product: order_system
+    expose_port: 8080
+    auth_method: jwt
+    ztn_policy: strict
+    is_public: false
+    workload: order-app-image
+
+  - id: payment_svc
+    name: payment-svc
+    product: order_system
+    expose_port: 8080
+    auth_method: mtls
+    ztn_policy: strict
+    is_public: false
+    workload: payment-app-image
+
+  - id: search_svc
+    name: product-search-svc
+    product: search_system
+    expose_port: 8080
+    auth_method: jwt
+    ztn_policy: relaxed
+    is_public: false
+    workload: search-app-image
+
+  # data tier
+  - id: user_db
+    name: user-postgres
+    product: order_system
+    expose_port: 5432
+    auth_method: password
+    ztn_policy: strict
+    is_public: false
+    workload: postgres-image
+
+  - id: cache_redis
+    name: order-redis
+    product: order_system
+    expose_port: 6379
+    auth_method: none           # known weakness for the demo
+    ztn_policy: relaxed
+    is_public: false
+    workload: redis-image
+
+
+# ── L3 Workloads ─────────────────────────────────────────────────────────────
+# `packages` is a flat list of "name-version" used for vuln matching later.
+workloads:
+  - id: api-gw-image
+    image: "nginx:1.25.1"
+    packages:
+      - openssl-3.0.9
+      - zlib-1.2.13
+    runtime: nginx
+    deployed_on: node-edge-01
+
+  - id: order-app-image
+    image: "registry/order-app:v3.2.0"
+    packages:
+      - openjdk-17.0.6
+      - log4j-2.20.0
+      - jackson-databind-2.15.0
+    runtime: jvm
+    deployed_on: node-app-01
+
+  - id: payment-app-image
+    image: "registry/payment-app:v2.5.1"
+    packages:
+      - python-3.11.4
+      - cryptography-41.0.1
+      - requests-2.31.0
+    runtime: python
+    deployed_on: node-app-01
+
+  - id: search-app-image
+    image: "registry/search-app:v1.8.0"
+    packages:
+      - python-3.11.4
+      - elasticsearch-8.10.2
+    runtime: python
+    deployed_on: node-app-02
+
+  - id: postgres-image
+    image: "postgres:14.5"
+    packages:
+      - postgresql-14.5
+      - openssl-3.0.9
+    runtime: postgres
+    deployed_on: node-data-01
+
+  - id: redis-image
+    image: "redis:6.2.7"
+    packages:
+      - redis-6.2.7
+    runtime: redis
+    deployed_on: node-data-01
+
+
+# ── L4 InfraNodes ────────────────────────────────────────────────────────────
+infra_nodes:
+  - id: node-edge-01
+    os: ubuntu-22.04
+    kernel_version: "6.5.0-15-generic"
+    hardware_model: vm-edge
+    location: dmz
+    is_public_exposed: true
+
+  - id: node-app-01
+    os: ubuntu-22.04
+    kernel_version: "6.5.0-15-generic"     # same kernel as edge -> shared blast radius
+    hardware_model: vm-app
+    location: app-zone
+    is_public_exposed: false
+
+  - id: node-app-02
+    os: ubuntu-22.04
+    kernel_version: "6.1.0-18-generic"     # older kernel, fewer CVEs share
+    hardware_model: vm-app
+    location: app-zone
+    is_public_exposed: false
+
+  - id: node-data-01
+    os: ubuntu-20.04
+    kernel_version: "5.15.0-89-generic"    # legacy, must not be reachable from edge
+    hardware_model: vm-data
+    location: data-zone
+    is_public_exposed: false
+
+
+# ── Static inter-service edges ───────────────────────────────────────────────
+# These are the edges your design doc calls "static baseline" — they come from
+# K8s NetworkPolicy / RBAC / APM in real deployments. Here we author them.
+edges:
+  # Internet ingress (synthetic node `internet` is added by graph.py).
+  - type: NETWORK_REACH
+    from: internet
+    to:   api_gateway
+    notes: "public HTTPS"
+
+  # API gateway routes
+  - type: NETWORK_REACH
+    from: api_gateway
+    to:   order_svc
+  - type: NETWORK_REACH
+    from: api_gateway
+    to:   search_svc
+
+  # Internal east-west
+  - type: NETWORK_REACH
+    from: order_svc
+    to:   payment_svc
+  - type: NETWORK_REACH
+    from: order_svc
+    to:   user_db
+  - type: NETWORK_REACH
+    from: order_svc
+    to:   cache_redis
+  - type: NETWORK_REACH
+    from: payment_svc
+    to:   user_db
+  - type: NETWORK_REACH
+    from: search_svc
+    to:   user_db
+
+  # IAM bindings (who can authenticate as whom / who has RBAC)
+  - type: IAM_BINDING
+    from: order_svc
+    to:   payment_svc
+    notes: "service account order-sa -> payment.invoke"
+  - type: IAM_BINDING
+    from: order_svc
+    to:   user_db
+    notes: "DB user order_app, write+read"
+  - type: IAM_BINDING
+    from: payment_svc
+    to:   user_db
+    notes: "DB user payment_app, write+read"
+  - type: IAM_BINDING
+    from: search_svc
+    to:   user_db
+    notes: "DB user search_ro, read-only"
+
+  # Data-flow markers (used for blast-radius scoring later)
+  - type: DATA_FLOW
+    from: order_svc
+    to:   user_db
+    notes: "writes order rows"
+  - type: DATA_FLOW
+    from: payment_svc
+    to:   user_db
+    notes: "writes payment rows"
+  - type: DATA_FLOW
+    from: search_svc
+    to:   user_db
+    notes: "reads product/user catalogue (no write)"

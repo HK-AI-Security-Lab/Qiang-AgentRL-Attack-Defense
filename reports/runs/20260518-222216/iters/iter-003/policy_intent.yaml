@@ -1,0 +1,59 @@
+policy_intent:
+  name: harden-iter-3
+  target:
+    image: autopatch-target:vuln
+  controls:
+    container_security:
+      run_as_non_root: false
+      allow_privilege_escalation: false
+      read_only_root_fs: false
+      no_new_privileges: true
+      privileged: false
+    capabilities:
+      drop:
+      - ALL
+      add:
+      - NET_RAW
+    seccomp:
+      profile: RuntimeDefault
+    mounts:
+      bind: []
+    namespace:
+      pid_host: false
+    app_waf:
+      enabled: true
+      block_patterns:
+      - '[;&|`$()\\n]'
+      - (?i)(\s|^)(union|select|insert|update|delete|drop|create|alter|exec|execute|script|javascript|onerror|onload|eval|function)(\s|$)
+      ssrf_allowed_schemes:
+      - http
+      - https
+      ssrf_allowed_hosts: []
+      path_traversal_block: true
+      sqli_parameterized: true
+      ssti_sandbox: true
+      pickle_disabled: true
+  rationale: 'Five bypassed edges remain at L1→L2: ia_ping, ia_fetch, ia_read, ia_render,
+    ia_search.
+
+    The command injection block_patterns regex `[;&|`$()\\n]` is not catching all
+    bypasses.
+
+    Red team payloads like `127.0.0.1; id` (semicolon+space) and `127.0.0.1 && id`
+    (ampersand+space)
+
+    are bypassing because the regex requires the metachar to be adjacent with no whitespace.
+
+    Adding a second pattern with word boundaries and case-insensitive SQL keywords
+    to catch
+
+    both shell injection variants (with spaces) and SQL injection payloads that slip
+    through
+
+    parameterization checks. This single app_waf block_patterns change targets the
+    highest-impact
+
+    bypassed edges: ia_ping→cap_shell_exec and ia_search→cap_db_read, which feed into
+
+    cc_read_shadow (REACHABLE). Severing these two edges cascades and reduces live
+    paths.'
